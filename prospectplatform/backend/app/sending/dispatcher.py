@@ -109,13 +109,27 @@ class WarmupManager:
 class Dispatcher:
     """Pipeline completo: coleta -> audita -> oportunidade -> mensagem -> envio."""
 
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db: Session | None = None):
+        self._db = db
         self._paused = False
         self._running = False
         self._last_error = None
         self._consecutive_errors = 0
         self._circuit_open = False
+        self._loop_task: asyncio.Task | None = None
+        self._started_at: datetime | None = None
+        self._last_cycle_at: datetime | None = None
+        self._next_cycle_at: datetime | None = None
+
+    @property
+    def db(self) -> Session:
+        if self._db is None or self._db.is_active is False:
+            from app.core.database import SessionLocal
+            self._db = SessionLocal()
+        return self._db
+
+    def replace_db(self, db: Session):
+        self._db = db
 
     @property
     def status(self) -> dict:
@@ -127,6 +141,10 @@ class Dispatcher:
             "consecutive_errors": self._consecutive_errors,
             "warmup_day": WarmupManager.get_day_number(),
             "warmup_max_today": WarmupManager.get_max_today(),
+            "started_at": self._started_at.isoformat() if self._started_at else None,
+            "last_cycle_at": self._last_cycle_at.isoformat() if self._last_cycle_at else None,
+            "next_cycle_at": self._next_cycle_at.isoformat() if self._next_cycle_at else None,
+            "loop_active": self._loop_task is not None and not self._loop_task.done(),
         }
 
     def pause(self):
@@ -138,6 +156,36 @@ class Dispatcher:
         self._circuit_open = False
         self._consecutive_errors = 0
         logger.info("Dispatcher retomado")
+
+    async def run_loop(self):
+        """Loop infinito de background. Chamar via asyncio.create_task()."""
+        self._started_at = datetime.now(timezone.utc)
+        logger.info(
+            f"Dispatcher loop iniciado (intervalo={settings.DISPATCHER_INTERVAL_SECONDS}s)"
+        )
+
+        while True:
+            self._next_cycle_at = datetime.now(timezone.utc) + timedelta(
+                seconds=settings.DISPATCHER_INTERVAL_SECONDS
+            )
+
+            await asyncio.sleep(settings.DISPATCHER_INTERVAL_SECONDS)
+
+            try:
+                await self.run_cycle()
+            except Exception as e:
+                logger.error(f"Excecao nao tratada no loop: {e}", exc_info=True)
+                self._last_error = str(e)
+                self._consecutive_errors += 1
+                self._check_circuit_breaker()
+
+    def stop(self):
+        """Para o loop de background."""
+        if self._loop_task and not self._loop_task.done():
+            self._loop_task.cancel()
+            logger.info("Dispatcher loop cancelado")
+        self._loop_task = None
+        self._next_cycle_at = None
 
     def _check_circuit_breaker(self):
         if self._consecutive_errors >= 5:
@@ -360,6 +408,7 @@ class Dispatcher:
             return
 
         self._running = True
+        self._last_cycle_at = datetime.now(timezone.utc)
         logger.info("Ciclo do dispatcher iniciado")
 
         try:

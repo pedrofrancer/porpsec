@@ -1,21 +1,15 @@
 from pydantic import BaseModel
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 
 router = APIRouter(prefix="/dispatcher", tags=["dispatcher"])
 
-# Instância global do dispatcher
-_dispatcher = None
 
-
-def get_dispatcher(db: Session = Depends(get_db)):
-    global _dispatcher
-    if _dispatcher is None:
-        from app.sending.dispatcher import Dispatcher
-        _dispatcher = Dispatcher(db)
-    return _dispatcher
+def _get_dispatcher():
+    from app.main import get_dispatcher
+    return get_dispatcher()
 
 
 class DispatcherStatus(BaseModel):
@@ -26,36 +20,41 @@ class DispatcherStatus(BaseModel):
     consecutive_errors: int
     warmup_day: int
     warmup_max_today: int
+    started_at: str | None
+    last_cycle_at: str | None
+    next_cycle_at: str | None
+    loop_active: bool
 
 
 @router.get("/status", response_model=DispatcherStatus)
-def dispatcher_status(dispatcher=Depends(get_dispatcher)):
+def dispatcher_status():
     """Retorna status do dispatcher."""
-    return dispatcher.status
+    return _get_dispatcher().status
 
 
 @router.post("/pause")
-def dispatcher_pause(dispatcher=Depends(get_dispatcher)):
+def dispatcher_pause():
     """Pausa o dispatcher."""
-    dispatcher.pause()
+    _get_dispatcher().pause()
     return {"status": "paused"}
 
 
 @router.post("/resume")
-def dispatcher_resume(dispatcher=Depends(get_dispatcher)):
+def dispatcher_resume():
     """Retoma o dispatcher."""
-    dispatcher.resume()
+    _get_dispatcher().resume()
     return {"status": "resumed"}
 
 
 @router.post("/run")
-async def dispatcher_run(dispatcher=Depends(get_dispatcher)):
+async def dispatcher_run():
     """Executa um ciclo manual do dispatcher."""
-    if dispatcher._running:
+    d = _get_dispatcher()
+    if d._running:
         return {"status": "already_running"}
 
     import asyncio
-    asyncio.create_task(dispatcher.run_cycle())
+    asyncio.create_task(d.run_cycle())
     return {"status": "cycle_started"}
 
 

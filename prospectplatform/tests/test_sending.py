@@ -275,3 +275,110 @@ def test_no_dedup_after_30_days(db):
 
     dispatcher = Dispatcher(db)
     assert not dispatcher._has_active_message(c.id)
+
+
+# --- Loop / Scheduler tests ---
+
+import asyncio
+from unittest.mock import AsyncMock, patch
+
+
+@pytest.mark.asyncio
+async def test_run_loop_respects_pause(db):
+    dispatcher = Dispatcher(db)
+    dispatcher._paused = True
+
+    with patch("app.sending.dispatcher.settings") as mock_settings:
+        mock_settings.DISPATCHER_INTERVAL_SECONDS = 0.05
+        task = asyncio.create_task(dispatcher.run_loop())
+        await asyncio.sleep(0.2)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert dispatcher._last_cycle_at is None
+
+
+@pytest.mark.asyncio
+async def test_run_loop_survives_exception(db):
+    dispatcher = Dispatcher(db)
+    call_count = 0
+
+    async def flaky_cycle():
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("Erro simulado")
+        dispatcher._last_cycle_at = datetime.now(timezone.utc)
+
+    dispatcher.run_cycle = flaky_cycle
+
+    with patch("app.sending.dispatcher.settings") as mock_settings:
+        mock_settings.DISPATCHER_INTERVAL_SECONDS = 0.05
+        task = asyncio.create_task(dispatcher.run_loop())
+        await asyncio.sleep(0.3)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert call_count >= 2
+    assert dispatcher._last_cycle_at is not None
+    assert dispatcher._last_error == "Erro simulado"
+
+
+@pytest.mark.asyncio
+async def test_run_loop_sets_timestamps(db):
+    dispatcher = Dispatcher(db)
+    dispatcher._paused = True
+
+    with patch("app.sending.dispatcher.settings") as mock_settings:
+        mock_settings.DISPATCHER_INTERVAL_SECONDS = 0.05
+        task = asyncio.create_task(dispatcher.run_loop())
+        await asyncio.sleep(0.15)
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+    assert dispatcher._started_at is not None
+    assert dispatcher._next_cycle_at is not None
+
+
+@pytest.mark.asyncio
+async def test_stop_cancels_loop(db):
+    dispatcher = Dispatcher(db)
+    dispatcher._paused = True
+
+    with patch("app.sending.dispatcher.settings") as mock_settings:
+        mock_settings.DISPATCHER_INTERVAL_SECONDS = 0.05
+        dispatcher._loop_task = asyncio.create_task(dispatcher.run_loop())
+        await asyncio.sleep(0.15)
+
+    dispatcher.stop()
+    assert dispatcher._loop_task is None
+    assert dispatcher._next_cycle_at is None
+
+
+def test_status_has_new_fields(db):
+    dispatcher = Dispatcher(db)
+    status = dispatcher.status
+    assert "started_at" in status
+    assert "last_cycle_at" in status
+    assert "next_cycle_at" in status
+    assert "loop_active" in status
+    assert status["started_at"] is None
+    assert status["loop_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_run_cycle_skips_when_paused(db):
+    dispatcher = Dispatcher(db)
+    dispatcher._paused = True
+    await dispatcher.run_cycle()
+    assert dispatcher._last_cycle_at is None
+    assert dispatcher._running is False
