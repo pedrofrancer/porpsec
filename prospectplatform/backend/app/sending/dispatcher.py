@@ -4,9 +4,11 @@ import logging
 import random
 import re
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import yaml
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
@@ -20,6 +22,9 @@ from app.models.prospection import ProspectingQueue, OptOut, ActionLog
 logger = logging.getLogger("dispatcher")
 
 AUTO_ENQUEUE_BATCH_SIZE = 5
+COLLECTION_COOLDOWN_DAYS = 3
+COLLECTION_TIMEOUT_SECONDS = 120
+_TARGETS_FILE = Path(__file__).parent.parent.parent.parent / "config" / "collection_targets.yaml"
 
 
 class ContentValidator:
@@ -106,6 +111,72 @@ class WarmupManager:
             return 1
         first_use = datetime.fromisoformat(state["first_use_date"])
         return (datetime.now(timezone.utc) - first_use).days + 1
+
+
+class CollectionTracker:
+    """Rastreia histórico de coletas automáticas para selecionar targets."""
+
+    HISTORY_FILE = Path(__file__).parent.parent.parent / "collection_history.json"
+
+    @classmethod
+    def _load(cls) -> dict:
+        if cls.HISTORY_FILE.exists():
+            return json.loads(cls.HISTORY_FILE.read_text(encoding="utf-8"))
+        return {"runs": []}
+
+    @classmethod
+    def _save(cls, data: dict):
+        cls.HISTORY_FILE.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    @classmethod
+    def get_targets(cls) -> list[dict]:
+        if not _TARGETS_FILE.exists():
+            return []
+        with open(_TARGETS_FILE, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+        return data.get("targets", [])
+
+    @classmethod
+    def record_run(cls, category_slug: str, city_name: str, stats: dict):
+        data = cls._load()
+        data["runs"].append({
+            "category_slug": category_slug,
+            "city_name": city_name,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "imported": stats.get("imported", 0),
+        })
+        cls._save(data)
+
+    @classmethod
+    def get_next_target(cls) -> dict | None:
+        """Retorna o target menos usado recentemente, ou None se todos usados nos últimos N dias."""
+        targets = cls.get_targets()
+        if not targets:
+            return None
+
+        data = cls._load()
+        runs = data.get("runs", [])
+        cutoff = datetime.now(timezone.utc) - timedelta(days=COLLECTION_COOLDOWN_DAYS)
+
+        recent_keys = set()
+        for run in runs:
+            ts = datetime.fromisoformat(run["timestamp"])
+            if ts >= cutoff:
+                recent_keys.add(f"{run['category_slug']}:{run['city_name']}")
+
+        unused = [t for t in targets if f"{t['category_slug']}:{t['city_name']}" not in recent_keys]
+
+        if not unused:
+            return None
+
+        usage_count = {}
+        for t in targets:
+            key = f"{t['category_slug']}:{t['city_name']}"
+            count = sum(1 for r in runs if f"{r['category_slug']}:{r['city_name']}" == key)
+            usage_count[key] = count
+
+        unused.sort(key=lambda t: usage_count.get(f"{t['category_slug']}:{t['city_name']}", 0))
+        return unused[0]
 
 
 class Dispatcher:
@@ -285,6 +356,82 @@ class Dispatcher:
             eligible.append(c)
 
         return eligible[:AUTO_ENQUEUE_BATCH_SIZE]
+
+    def _get_companies_without_phone(self) -> list[Company]:
+        """Busca empresas sem telefone elegíveis para coleta de dados."""
+        companies = self.db.query(Company).filter(
+            (Company.phone.is_(None)) | (Company.phone == ""),
+            Company.website.isnot(None),
+            Company.website != "",
+        ).limit(AUTO_ENQUEUE_BATCH_SIZE).all()
+        return companies
+
+    async def _run_auto_collection(self) -> int:
+        """Dispara coleta Google Maps quando base está esgotada. Retorna empresas novas."""
+        target = CollectionTracker.get_next_target()
+        if not target:
+            logger.info(
+                "Nenhum alvo de coleta disponivel — configure novos targets"
+            )
+            return 0
+
+        category_slug = target["category_slug"]
+        city_name = target["city_name"]
+        max_results = target.get("max_results", 20)
+
+        logger.info(
+            f"Base esgotada — disparando coleta: {category_slug} em {city_name}"
+        )
+
+        count_before = self.db.query(func.count(Company.id)).scalar()
+
+        try:
+            from app.collectors.google_maps import GoogleMapsCollector
+
+            def run_sync():
+                collector = GoogleMapsCollector(self.db)
+                stats = collector.collect(
+                    category_slug=category_slug,
+                    city_name=city_name,
+                    max_results=max_results,
+                    headless=True,
+                )
+                self.db.commit()
+                return stats
+
+            loop = asyncio.get_event_loop()
+            stats = await asyncio.wait_for(
+                loop.run_in_executor(None, run_sync),
+                timeout=COLLECTION_TIMEOUT_SECONDS,
+            )
+
+            count_after = self.db.query(func.count(Company.id)).scalar()
+            new_count = count_after - count_before
+
+            CollectionTracker.record_run(category_slug, city_name, stats)
+
+            logger.info(
+                f"Coleta concluida: {category_slug} em {city_name} — "
+                f"{new_count} empresas novas (total: {count_after})"
+            )
+            return new_count
+
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"Coleta excedeu timeout ({COLLECTION_TIMEOUT_SECONDS}s): "
+                f"{category_slug} em {city_name}"
+            )
+            return 0
+        except Exception as e:
+            logger.error(f"Erro na coleta automatica: {e}")
+            return 0
+
+    async def _try_auto_collect(self) -> int:
+        """Tenta coleta automática se base esgotada. Retorna quantidade coletada."""
+        target = CollectionTracker.get_next_target()
+        if not target:
+            return 0
+        return await self._run_auto_collection()
 
     async def _auto_enqueue(self) -> int:
         """Auto-enfileira empresas elegíveis. Retorna quantidade processada."""
@@ -538,6 +685,12 @@ class Dispatcher:
         try:
             enqueued = await self._auto_enqueue()
             logger.info(f"Novas empresas processadas: {enqueued}")
+
+            if enqueued == 0:
+                collected = await self._try_auto_collect()
+                if collected > 0:
+                    enqueued = await self._auto_enqueue()
+                    logger.info(f"Pos-coleta — empresas processadas: {enqueued}")
 
             if not self._is_within_send_window():
                 logger.info("Fora da janela de envio — skip envio, auto-enqueue concluido")

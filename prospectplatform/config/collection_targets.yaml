@@ -1,0 +1,28 @@
+targets:
+  - category_slug: barbearia
+    city_name: Cabo Frio
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: Buzios
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: Arraial do Cabo
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: Saquarema
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: Marica
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: São Pedro da Aldeia
+    max_results: 20
+
+  - category_slug: barbearia
+    city_name: Iguaba Grande
+    max_results: 20

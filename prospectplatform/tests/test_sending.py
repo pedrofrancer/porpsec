@@ -410,6 +410,146 @@ async def test_auto_enqueue_runs_outside_send_window(db):
     assert dispatcher._running is False
 
 
+# --- CollectionTracker tests ---
+
+from app.sending.dispatcher import CollectionTracker, COLLECTION_COOLDOWN_DAYS
+
+
+def test_collection_tracker_get_targets():
+    targets = CollectionTracker.get_targets()
+    assert isinstance(targets, list)
+    assert len(targets) > 0
+    assert "category_slug" in targets[0]
+    assert "city_name" in targets[0]
+
+
+def test_collection_tracker_get_next_target_no_history():
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    target = CollectionTracker.get_next_target()
+    assert target is not None
+    assert "category_slug" in target
+    assert "city_name" in target
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+def test_collection_tracker_records_and_rotates():
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    targets = CollectionTracker.get_targets()
+    first_target = targets[0]
+    CollectionTracker.record_run(
+        first_target["category_slug"],
+        first_target["city_name"],
+        {"imported": 5},
+    )
+
+    next_target = CollectionTracker.get_next_target()
+    assert next_target is not None
+    if len(targets) > 1:
+        assert f"{next_target['category_slug']}:{next_target['city_name']}" != \
+               f"{first_target['category_slug']}:{first_target['city_name']}"
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+def test_collection_tracker_all_used_returns_none():
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    targets = CollectionTracker.get_targets()
+    for t in targets:
+        CollectionTracker.record_run(t["category_slug"], t["city_name"], {"imported": 1})
+
+    result = CollectionTracker.get_next_target()
+    assert result is None
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_try_auto_collect_no_targets(db):
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    targets = CollectionTracker.get_targets()
+    for t in targets:
+        CollectionTracker.record_run(t["category_slug"], t["city_name"], {"imported": 1})
+
+    dispatcher = Dispatcher(db)
+    count = await dispatcher._try_auto_collect()
+    assert count == 0
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_try_auto_collect_runs_when_base_exhausted(db):
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    dispatcher = Dispatcher(db)
+
+    with patch.object(dispatcher, "_run_auto_collection", new_callable=AsyncMock) as mock_collect:
+        mock_collect.return_value = 3
+        count = await dispatcher._try_auto_collect()
+        assert count == 3
+        mock_collect.assert_called_once()
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_run_cycle_triggers_collection_on_exhausted_base(db):
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    dispatcher = Dispatcher(db)
+
+    with patch.object(dispatcher, "_auto_enqueue", new_callable=AsyncMock) as mock_enqueue, \
+         patch.object(dispatcher, "_try_auto_collect", new_callable=AsyncMock) as mock_collect, \
+         patch.object(dispatcher, "_is_within_send_window", return_value=False):
+
+        mock_enqueue.side_effect = [0, 1]
+        mock_collect.return_value = 3
+
+        await dispatcher.run_cycle()
+
+    mock_collect.assert_called_once()
+    assert mock_enqueue.call_count == 2
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_run_cycle_skips_collection_when_eligible_exist(db):
+    CollectionTracker.HISTORY_FILE = CollectionTracker.HISTORY_FILE.parent / "test_collection_history.json"
+    if CollectionTracker.HISTORY_FILE.exists():
+        CollectionTracker.HISTORY_FILE.unlink()
+
+    dispatcher = Dispatcher(db)
+
+    with patch.object(dispatcher, "_auto_enqueue", new_callable=AsyncMock) as mock_enqueue, \
+         patch.object(dispatcher, "_try_auto_collect", new_callable=AsyncMock) as mock_collect, \
+         patch.object(dispatcher, "_is_within_send_window", return_value=False):
+
+        mock_enqueue.return_value = 2
+        await dispatcher.run_cycle()
+
+    mock_collect.assert_not_called()
+
+    CollectionTracker.HISTORY_FILE.unlink(missing_ok=True)
+
+
 # --- Auto-enqueue tests ---
 
 from app.sending.dispatcher import AUTO_ENQUEUE_BATCH_SIZE
