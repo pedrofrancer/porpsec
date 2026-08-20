@@ -1,21 +1,23 @@
 import csv
-import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.collectors.base import BaseCollector
 from app.models.company import Company
 from app.models.geography import City
 from app.models.category import Category
 
 
-class CSVCollector:
+class CSVCollector(BaseCollector):
     REQUIRED_FIELDS = {"nome", "categoria", "cidade"}
 
     def __init__(self, db: Session):
-        self.db = db
-        self.stats = {"total": 0, "imported": 0, "skipped_duplicates": 0, "errors": 0}
+        super().__init__(db)
+
+    def collect(self, file_path: str) -> dict:
+        return self.import_csv(file_path)
 
     def import_csv(self, file_path: str) -> dict:
         path = Path(file_path)
@@ -87,6 +89,3 @@ class CSVCollector:
         self.db.add(company)
         self.db.flush()
         self.stats["imported"] += 1
-
-    def commit(self):
-        self.db.commit()

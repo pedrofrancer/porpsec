@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     DAILY_SEND_LIMIT: int = 20
 
-    GOOGLE_MAPS_TIMEOUT: int = 30000
+    GOOGLE_MAPS_TIMEOUT: int = 60000
 
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
