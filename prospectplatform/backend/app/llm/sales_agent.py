@@ -5,26 +5,74 @@ from app.models.opportunity import Opportunity
 from app.schemas.audit import DiagnosisReport
 
 
-SYSTEM_PROMPT = """Você é um consultor de transformação digital que aborda donos de pequenos negócios locais de forma consultiva e respeitosa.
+SYSTEM_PROMPT = """Voce e uma pessoa que ajudou varios donos de negocio local a melhorar a presenca online. Voce conhece bem o dia-a-dia de quem roda uma barbearia, salao, clinica, restaurante — e fala na mesma linguagem deles.
 
-REGRAS:
-- Mensagem curta (máximo 3 frases)
-- Tom consultivo, nunca agressivo ou vendedor
-- Citar 1 problema concreto que a empresa tem (com evidência)
-- Sugerir 1 solução específica
-- Se disponível, incluir comparativo regional (ex: "X% das barbearias da sua região não têm site")
-- NUNCA inventar dados — use apenas o que foi fornecido
-- Não usar emojis
-- Assinar como "Equipe de Consultoria Digital"
-- NÃO enviar link de agendamento — apenas sinalizar interesse em conversar
+Voce esta enviando uma mensagem direta no WhatsApp dono(a) de um negocio local.
 
-EXEMPLO:
-"Sr. Marco, notei que a Barbearia do Marco não possui site, enquanto 60% das barbearias da região já investiram nisso. Podemos conversar sobre como mudar isso? Equipe de Consultoria Digital"
+REGRAS ABSOLUTAS (nao quebre nenhuma):
+1. Comece com um elogio ESPECIFICO e genuino sobre algo real que voce viu (nota boa no Google, fotos legais, conteudo do Instagram, localizacao boa, etc). NUNCA diga "adorei sua empresa" ou qualquer coisa generica.
+2. Cite UM so problema real, com prova concreta do que voce viu ou nao viu ("vi que...", "nao achei...", "reparei que...", "pelo que vi..."). NAO mencione lista de problemas.
+3. Explique em UMA frase curta por que isso importa pro negocio dela (sem jargao tecnico).
+4. Termine com uma pergunta aberta e de baixo compromisso ("topa eu te mostrar?", "posso te mandar?", "quer ver como ficaria?"). NUNCA ofereca servico diretamente, NUNCA mande link, NUNCA diga "vamos agendar uma call".
+5. Tom: pessoa real falando com pessoa real. Dono de negocio falando com dono de negocio. Nao "consultor", Nao "empresa", Nao "equipe". Nao assine com nome de empresa no final.
+6. Maximo 4-5 frases no total. Mensagem curta.
+7. NAO use emojis. NAO use formatacao Markdown. NAO use aspas no inicio/fim da mensagem.
+8. NAO invente dados que nao foram fornecidos. Se nao tem nota no Google, nao mencione nota. Se nao tem Instagram, nao mencione Instagram.
+
+TIPOS DE ABORDAGEM (escolha o mais relevante e adapte):
+
+SEM SITE:
+- Elogio: nota no Google, fotos, reputacao
+- Problema: "nao achei um site de voces — so Instagram"
+- Por que importa: gente que busca "categoria perto de mim" nao encontra
+- Pergunta: "topa eu te mostrar como ficaria?"
+
+SEM AGENDAMENTO ONLINE (barbearia/salao/clinica):
+- Elogio: fotos, nota, reputacao
+- Problema: "reparei que os agendamentos sao so por telefone/WhatsApp"
+- Por que importa: cliente prefere marcar direto pelo celular
+- Pergunta: "consigo te mostrar rapidinho como isso funcionaria?"
+
+SITE LENTO OU DESATUALIZADO:
+- Elogio: tem site (raro, bom sinal)
+- Problema: "dei uma olhada e vi que faz tempo que nao e atualizado" ou "ta bem lento"
+- Por que importa: pode estar deixando passar cliente
+- Pergunta: "posso te mandar 2-3 coisas simples que dariam pra melhorar?"
+
+SEM WHATSAPP VISIVEL / SEM CTA:
+- Elogio: nota boa, boa reputacao
+- Problema: "nao achei um jeito rapido de falar com voces pelo perfil"
+- Por que importa: cliente novo quer contato imediato
+- Pergunta: "quer que eu te mostre como fica?"
+
+INSTAGRAM INATIVO:
+- Elogio: perfil que existe, conteudo anterior
+- Problema: "faz um tempo que nao posta nada"
+- Por que importa: gente que procura pode achar o perfil "parado"
+- Pergunta: "posso te mandar umas ideias simples?"
+
+GOOGLE BUSINESS INCOMPLETO:
+- Elogio: tem perfil (raro completar)
+- Problema: "ta faltando fotos/horario/categoria"
+- Por que importa: cliente pesquisa e escolhe pelo Google
+- Pergunta: "quer que eu te mostre o que preencher?"
+
+CONTEXTO REGIONAL (use so se tiver >=15 empresas auditadas):
+- Inclua uma comparacao sutil: "X% das [categoria] da regiao ainda nao tem [problema]"
+- So mencione se natural, nao force no meio da mensagem
+
+DADOS DA EMPRESA (use os que existirem):
+- Nome da empresa ( SEMPRE mencione )
+- Categoria
+- Cidade
+- Nota Google (se tiver)
+- Instagram (se tiver)
+- Website (se tiver)
 """
 
 
 def _build_context(company: Company, audit: Audit | None, opportunities: list[Opportunity], diagnosis: DiagnosisReport | None) -> str:
-    """Monta o contexto que será enviado ao LLM."""
+    """Monta o contexto que sera enviado ao LLM."""
     lines = [
         f"Empresa: {company.name}",
         f"Categoria: {company.category.name if company.category else 'N/A'}",
@@ -38,32 +86,43 @@ def _build_context(company: Company, audit: Audit | None, opportunities: list[Op
     if company.instagram:
         lines.append(f"Instagram: {company.instagram}")
 
+    if company.google_rating:
+        lines.append(f"Nota Google: {company.google_rating}")
+    if company.google_review_count:
+        lines.append(f"Avaliacoes Google: {company.google_review_count}")
+
     if audit:
         lines.append(f"\nDigital Score: {audit.digital_score}/100")
-        if audit.has_https is not None:
-            lines.append(f"HTTPS: {'Sim' if audit.has_https else 'Não'}")
-        if audit.response_time_ms:
-            lines.append(f"Tempo resposta: {audit.response_time_ms}ms")
         if audit.has_whatsapp is not None:
-            lines.append(f"WhatsApp visível: {'Sim' if audit.has_whatsapp else 'Não'}")
+            lines.append(f"WhatsApp visivel: {'Sim' if audit.has_whatsapp else 'Nao'}")
         if audit.has_scheduling is not None:
-            lines.append(f"Agendamento online: {'Sim' if audit.has_scheduling else 'Não'}")
+            lines.append(f"Agendamento online: {'Sim' if audit.has_scheduling else 'Nao'}")
+        if audit.has_cta is not None:
+            lines.append(f"CTA de contato: {'Sim' if audit.has_cta else 'Nao'}")
         if audit.instagram_active is not None:
-            lines.append(f"Instagram ativo (30d): {'Sim' if audit.instagram_active else 'Não'}")
+            lines.append(f"Instagram ativo (30d): {'Sim' if audit.instagram_active else 'Nao'}")
         if audit.google_business_complete is not None:
-            lines.append(f"Google Business completo: {'Sim' if audit.google_business_complete else 'Não'}")
+            lines.append(f"Google Business completo: {'Sim' if audit.google_business_complete else 'Nao'}")
+        if audit.response_time_ms:
+            lines.append(f"Tempo resposta site: {audit.response_time_ms}ms")
+        if audit.has_viewport is not None:
+            lines.append(f"Site responsivo: {'Sim' if audit.has_viewport else 'Nao'}")
 
     if opportunities:
-        lines.append("\nOportunidades identificadas:")
-        for opp in opportunities[:3]:
-            lines.append(f"  - [{opp.priority}] {opp.problem} -> {opp.suggested_solution}")
+        lines.append("\nMaior oportunidade:")
+        best = opportunities[0]
+        lines.append(f"  Problema: {best.problem}")
+        lines.append(f"  Solucao sugerida: {best.suggested_solution}")
+        lines.append(f"  Prioridade: {best.priority}")
+        if best.evidence:
+            lines.append(f"  Evidencia: {best.evidence}")
 
     if diagnosis and diagnosis.regional_comparison.available:
         rc = diagnosis.regional_comparison.data
         lines.append(f"\nContexto regional ({rc['total_audited']} empresas do mesmo segmento na cidade):")
         lines.append(f"  - {rc['pct_without_site']}% sem site")
         lines.append(f"  - {rc['pct_without_scheduling']}% sem agendamento")
-        lines.append(f"  - Nota média: {rc['avg_score']}")
+        lines.append(f"  - Nota media: {rc['avg_score']}")
 
     return "\n".join(lines)
 
@@ -81,24 +140,52 @@ async def generate_outreach_message(
         return _fallback_message(company, audit, opportunities)
 
     context = _build_context(company, audit, opportunities, diagnosis)
-    user_prompt = f"Gere uma mensagem de abordagem consultiva para o dono desta empresa:\n\n{context}"
+    user_prompt = (
+        "Gere UMA mensagem curta (maximo 5 frases) de abordagem no WhatsApp "
+        "para o dono(a) desta empresa. Siga as regras do system prompt.\n\n"
+        f"DADOS DA EMPRESA:\n{context}"
+    )
 
-    return await client.chat(SYSTEM_PROMPT, user_prompt, temperature=0.7)
+    return await client.chat(SYSTEM_PROMPT, user_prompt, temperature=0.8)
 
 
 def _fallback_message(company: Company, audit: Audit | None, opportunities: list[Opportunity]) -> str:
-    """Mensagem fallback quando LLM não está configurado."""
-    problem = ""
+    """Mensagem fallback quando LLM nao esta configurado."""
+    name = company.name
+    cat = company.category.name if company.category else "seu negocio"
+
     if not company.website:
-        problem = "a ausência de website"
-    elif audit and not audit.has_scheduling:
-        problem = "a falta de agendamento online"
-    elif audit and audit.instagram_active is False:
-        problem = "o Instagram sem atividade recente"
-    elif opportunities:
-        problem = opportunities[0].problem.lower()
+        return (
+            f"Opa, tudo bem? Vi o {name} no Google, nota boa! "
+            f"Só nao achei um site de voces — so Instagram. "
+            f"Um site simples ajudaria bastante gente que busca '{cat} perto de mim' a te encontrar antes dos concorrentes. "
+            f"Topa eu te mostrar como ficaria?"
+        )
 
-    if problem:
-        return f"Olá, sou consultor digital e notei {problem} na sua empresa. Podemos conversar sobre como resolver isso? Equipe de Consultoria Digital"
+    if audit and not audit.has_scheduling:
+        return (
+            f"Oi! Passei aqui pelo Google e adorei as fotos do {name}! "
+            f"Reparei que os agendamentos ainda sao so por telefone/WhatsApp — "
+            f"muita cliente prefere marcar horario direto pelo celular, sem precisar esperar resposta. "
+            f"Consigo te mostrar rapidinho como isso funcionaria pro negocio de voces?"
+        )
 
-    return "Olá, sou consultor digital e gostaria de conversar sobre a presença online da sua empresa. Podemos agendar uma conversa rápida? Equipe de Consultoria Digital"
+    if audit and audit.instagram_active is False:
+        return (
+            f"Oi, tudo bem? Vi o {name} no Instagram, conteudo bom! "
+            f"Mas faz um tempo que nao posta nada — gente que procura pode achar o perfil parado. "
+            f"Posso te mandar umas ideias simples pra voltar a aparecer?"
+        )
+
+    if opportunities:
+        opp = opportunities[0]
+        return (
+            f"Oi! Vi o {name} no Google — {cat} na região de {company.city.name if company.city else 'sua cidade'}. "
+            f"Notei que {opp.problem.lower()}. "
+            f"Quer que eu te mostre como resolver isso?"
+        )
+
+    return (
+        f"Oi! Vi o {name} no Google e gostaria de conversar sobre a presenca online. "
+        f"Topa uma troca rapida de ideias?"
+    )
