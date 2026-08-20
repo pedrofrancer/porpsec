@@ -2,10 +2,12 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.company import Company
 from app.api.v1.endpoints import companies as company_crud
 from app.schemas.company import (
     CompanyCreate, CompanyUpdate, CompanyRead, CompanyReadFull, PaginatedCompanies,
 )
+from app.schemas.audit import DiagnosisReport
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -54,3 +56,20 @@ def update_company(company_id: int, data: CompanyUpdate, db: Session = Depends(g
 def delete_company(company_id: int, db: Session = Depends(get_db)):
     if not company_crud.delete_company(company_id, db):
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+
+@router.get("/{company_id}/diagnosis", response_model=DiagnosisReport)
+def get_diagnosis(company_id: int, db: Session = Depends(get_db)):
+    """Retorna diagnóstico completo da empresa (usa auditoria mais recente)."""
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+    from app.models.audit import Audit
+    from app.models.opportunity import Opportunity
+    from app.api.v1.endpoints.diagnosis import build_diagnosis
+
+    audit = db.query(Audit).filter(Audit.company_id == company_id).order_by(Audit.id.desc()).first()
+    opportunities = db.query(Opportunity).filter(Opportunity.company_id == company_id).all()
+
+    return build_diagnosis(company, audit, opportunities, db)
