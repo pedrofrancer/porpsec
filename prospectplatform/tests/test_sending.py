@@ -382,3 +382,210 @@ async def test_run_cycle_skips_when_paused(db):
     await dispatcher.run_cycle()
     assert dispatcher._last_cycle_at is None
     assert dispatcher._running is False
+
+
+# --- Auto-enqueue tests ---
+
+from app.sending.dispatcher import AUTO_ENQUEUE_BATCH_SIZE
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_new_company(db):
+    c = Company(
+        name="Nova Barbearia",
+        city_id=1,
+        category_id=1,
+        phone="(22)91234-5678",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert len(eligible) >= 1
+    assert any(co.id == c.id for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_skips_no_phone(db):
+    c = Company(
+        name="Sem Telefone",
+        city_id=1,
+        category_id=1,
+        phone=None,
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert not any(co.name == "Sem Telefone" for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_skips_empty_phone(db):
+    c = Company(
+        name="Telefone Vazio",
+        city_id=1,
+        category_id=1,
+        phone="",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert not any(co.name == "Telefone Vazio" for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_skips_recent_message(db):
+    c = Company(
+        name="Ja Mensagemada",
+        city_id=1,
+        category_id=1,
+        phone="(22)91111-2222",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    msg = Message(
+        company_id=c.id,
+        opportunity_ids="[]",
+        message_text="teste",
+        status="enviado",
+        generated_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert not any(co.id == c.id for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_skips_opt_out(db):
+    c = Company(
+        name="Optoutada",
+        city_id=1,
+        category_id=1,
+        phone="(22)93333-4444",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+
+    opt = OptOut(contact_identifier="(22)93333-4444", reason="teste")
+    db.add(opt)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert not any(co.name == "Optoutada" for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_skips_active_queue(db):
+    c = Company(
+        name="Na Fila",
+        city_id=1,
+        category_id=1,
+        phone="(22)95555-6666",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    q = ProspectingQueue(company_id=c.id, status="PENDENTE")
+    db.add(q)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert not any(co.id == c.id for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_allows_reprocess_after_30_days(db):
+    c = Company(
+        name="Reprocessavel",
+        city_id=1,
+        category_id=1,
+        phone="(22)97777-8888",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    old_date = datetime.now(timezone.utc) - timedelta(days=35)
+    msg = Message(
+        company_id=c.id,
+        opportunity_ids="[]",
+        message_text="teste velho",
+        status="enviado",
+        generated_at=old_date,
+        sent_at=old_date,
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert any(co.id == c.id for co in eligible)
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_batch_limit(db):
+    for i in range(AUTO_ENQUEUE_BATCH_SIZE + 3):
+        c = Company(
+            name=f"Empresa Lote {i}",
+            city_id=1,
+            category_id=1,
+            phone=f"(22)9{1000 + i}-0000",
+            source="test",
+            collected_at=datetime.now(timezone.utc),
+        )
+        db.add(c)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert len(eligible) <= AUTO_ENQUEUE_BATCH_SIZE
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_base_exhausted(db, company):
+    msg = Message(
+        company_id=company.id,
+        opportunity_ids="[]",
+        message_text="teste",
+        status="enviado",
+        generated_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    count = await dispatcher._auto_enqueue()
+    assert count == 0
+
+    pending = dispatcher._get_pending_companies()
+    assert len(pending) == 0

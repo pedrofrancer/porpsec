@@ -19,6 +19,8 @@ from app.models.prospection import ProspectingQueue, OptOut, ActionLog
 
 logger = logging.getLogger("dispatcher")
 
+AUTO_ENQUEUE_BATCH_SIZE = 5
+
 
 class ContentValidator:
     """Valida mensagem antes de enviar."""
@@ -241,6 +243,140 @@ class Dispatcher:
             Message.generated_at >= cutoff,
         ).first() is not None
 
+    def _get_eligible_companies(self) -> list[Company]:
+        """Busca empresas elegíveis para auto-enfileiramento."""
+        cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+
+        opted_out_phones = [
+            row[0] for row in self.db.query(OptOut.contact_identifier).all()
+        ]
+
+        active_queue_company_ids = [
+            row[0] for row in self.db.query(ProspectingQueue.company_id)
+            .filter(ProspectingQueue.status.in_(["PENDENTE", "ERRO"]))
+            .all()
+        ]
+
+        recent_msg_company_ids = [
+            row[0] for row in self.db.query(Message.company_id)
+            .filter(
+                Message.generated_at >= cutoff,
+                Message.status.in_(["rascunho", "aprovado", "enviado"]),
+            )
+            .distinct()
+            .all()
+        ]
+
+        exclude_ids = set(active_queue_company_ids + recent_msg_company_ids)
+
+        companies = self.db.query(Company).filter(
+            Company.phone.isnot(None),
+            Company.phone != "",
+        ).all()
+
+        eligible = []
+        for c in companies:
+            if c.id in exclude_ids:
+                continue
+            if c.phone in opted_out_phones:
+                continue
+            if c.instagram and c.instagram in opted_out_phones:
+                continue
+            eligible.append(c)
+
+        return eligible[:AUTO_ENQUEUE_BATCH_SIZE]
+
+    async def _auto_enqueue(self) -> int:
+        """Auto-enfileira empresas elegíveis. Retorna quantidade processada."""
+        eligible = self._get_eligible_companies()
+
+        if not eligible:
+            logger.info("Nenhuma empresa nova elegivel — base esgotada")
+            return 0
+
+        logger.info(f"Empresas elegiveis para auto-enfileiramento: {len(eligible)}")
+        enqueued = 0
+
+        for company in eligible:
+            try:
+                audit = self.db.query(Audit).filter(
+                    Audit.company_id == company.id
+                ).order_by(Audit.id.desc()).first()
+
+                if not audit:
+                    try:
+                        from app.auditors.website_auditor import WebsiteAuditor
+                        auditor = WebsiteAuditor(self.db)
+                        result = await auditor.audit(company.id)
+                        audit = auditor.save_audit(company.id, result)
+                    except Exception as e:
+                        logger.warning(f"Auditoria falhou para {company.name}: {e}")
+
+                opportunities = self.db.query(Opportunity).filter(
+                    Opportunity.company_id == company.id
+                ).all()
+
+                if not opportunities:
+                    try:
+                        from app.opportunities.engine import OpportunityEngine
+                        engine = OpportunityEngine(self.db)
+                        results = engine.evaluate(company)
+                        engine.save_opportunities(company, results)
+                        opportunities = self.db.query(Opportunity).filter(
+                            Opportunity.company_id == company.id
+                        ).all()
+                    except Exception as e:
+                        logger.warning(f"Oportunidades falharam para {company.name}: {e}")
+
+                from app.llm.sales_agent import generate_outreach_message
+                from app.api.v1.endpoints.diagnosis import build_diagnosis
+
+                diagnosis = build_diagnosis(company, audit, opportunities, self.db)
+                message_text = await generate_outreach_message(
+                    company, audit, opportunities, diagnosis
+                )
+
+                valid, error = ContentValidator.validate(message_text, company.name)
+                msg_status = "aprovado" if valid else "erro_validacao"
+
+                if valid:
+                    approved_at = datetime.now(timezone.utc)
+                else:
+                    approved_at = None
+                    logger.warning(f"Validacao falhou para {company.name}: {error}")
+
+                msg = Message(
+                    company_id=company.id,
+                    opportunity_ids=json.dumps([o.id for o in opportunities[:3]]),
+                    message_text=message_text,
+                    status=msg_status,
+                    generated_at=datetime.now(timezone.utc),
+                    approved_at=approved_at,
+                    llm_model=settings.LLM_MODEL,
+                )
+                self.db.add(msg)
+                self.db.commit()
+
+                entry = ProspectingQueue(
+                    company_id=company.id,
+                    status="PENDENTE" if valid else "ERRO",
+                    notes="Auto-enfileirado" if valid else f"Validacao falhou: {error}",
+                )
+                self.db.add(entry)
+                self.db.commit()
+                enqueued += 1
+
+                logger.info(
+                    f"Auto-enfileirado: {company.name} "
+                    f"(msg={msg_status}, queue={'PENDENTE' if valid else 'ERRO'})"
+                )
+
+            except Exception as e:
+                logger.error(f"Erro ao auto-enfileirar {company.name}: {e}")
+                self.db.rollback()
+
+        return enqueued
+
     def _get_pending_companies(self) -> list[ProspectingQueue]:
         return self.db.query(ProspectingQueue).filter(
             ProspectingQueue.status == "PENDENTE"
@@ -412,6 +548,9 @@ class Dispatcher:
         logger.info("Ciclo do dispatcher iniciado")
 
         try:
+            enqueued = await self._auto_enqueue()
+            logger.info(f"Novas empresas processadas: {enqueued}")
+
             pending = self._get_pending_companies()
             logger.info(f"Empresas na fila: {len(pending)}")
 
