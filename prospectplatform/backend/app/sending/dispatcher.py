@@ -531,18 +531,6 @@ class Dispatcher:
             logger.info("Fim de semana — skip")
             return
 
-        if not self._is_within_send_window():
-            logger.info("Fora da janela de envio — skip")
-            return
-
-        if not self._can_send_daily():
-            logger.info("Limite diario atingido — skip")
-            return
-
-        if not self._can_send_hourly():
-            logger.info("Limite horario atingido — skip")
-            return
-
         self._running = True
         self._last_cycle_at = datetime.now(timezone.utc)
         logger.info("Ciclo do dispatcher iniciado")
@@ -550,6 +538,18 @@ class Dispatcher:
         try:
             enqueued = await self._auto_enqueue()
             logger.info(f"Novas empresas processadas: {enqueued}")
+
+            if not self._is_within_send_window():
+                logger.info("Fora da janela de envio — skip envio, auto-enqueue concluido")
+                return
+
+            if not self._can_send_daily():
+                logger.info("Limite diario atingido — skip envio")
+                return
+
+            if not self._can_send_hourly():
+                logger.info("Limite horario atingido — skip envio")
+                return
 
             pending = self._get_pending_companies()
             logger.info(f"Empresas na fila: {len(pending)}")

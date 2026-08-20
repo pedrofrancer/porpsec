@@ -384,6 +384,32 @@ async def test_run_cycle_skips_when_paused(db):
     assert dispatcher._running is False
 
 
+@pytest.mark.asyncio
+async def test_auto_enqueue_runs_outside_send_window(db):
+    c = Company(
+        name="Fora Horario",
+        city_id=1,
+        category_id=1,
+        phone="(22)94444-5555",
+        source="test",
+        collected_at=datetime.now(timezone.utc),
+    )
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+
+    dispatcher = Dispatcher(db)
+
+    with patch.object(dispatcher, "_is_within_send_window", return_value=False), \
+         patch.object(dispatcher, "_auto_enqueue", new_callable=AsyncMock) as mock_enqueue:
+        mock_enqueue.return_value = 1
+        await dispatcher.run_cycle()
+
+    mock_enqueue.assert_called_once()
+    assert dispatcher._last_cycle_at is not None
+    assert dispatcher._running is False
+
+
 # --- Auto-enqueue tests ---
 
 from app.sending.dispatcher import AUTO_ENQUEUE_BATCH_SIZE
