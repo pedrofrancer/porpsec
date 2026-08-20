@@ -10,7 +10,10 @@ class Audit(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
 
+    # Digital Score (0-100)
     digital_score: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # WEBSITE
     has_https: Mapped[bool | None] = mapped_column(Boolean)
     response_time_ms: Mapped[int | None] = mapped_column(Integer)
     has_whatsapp: Mapped[bool | None] = mapped_column(Boolean)
@@ -19,7 +22,25 @@ class Audit(Base):
     has_scheduling: Mapped[bool | None] = mapped_column(Boolean)
     has_meta_title: Mapped[bool | None] = mapped_column(Boolean)
     has_meta_description: Mapped[bool | None] = mapped_column(Boolean)
+    meta_title_length: Mapped[int | None] = mapped_column(Integer)
+    meta_desc_length: Mapped[int | None] = mapped_column(Integer)
+    has_viewport: Mapped[bool | None] = mapped_column(Boolean)
+    has_blog_content: Mapped[bool | None] = mapped_column(Boolean)
+    blog_freshness_days: Mapped[int | None] = mapped_column(Integer)
 
+    # REDES SOCIAIS
+    instagram_exists: Mapped[bool | None] = mapped_column(Boolean)
+    instagram_public: Mapped[bool | None] = mapped_column(Boolean)
+    instagram_active: Mapped[bool | None] = mapped_column(Boolean)
+    facebook_exists: Mapped[bool | None] = mapped_column(Boolean)
+    facebook_active: Mapped[bool | None] = mapped_column(Boolean)
+    google_business_complete: Mapped[bool | None] = mapped_column(Boolean)
+
+    # WHATSAPP SIGNALS (inferência, não detecção direta)
+    whatsapp_catalog_link: Mapped[bool | None] = mapped_column(Boolean)
+    whatsapp_responds_badge: Mapped[bool | None] = mapped_column(Boolean)
+
+    # Dados brutos extras
     raw_data: Mapped[str | None] = mapped_column(Text)
 
     audited_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

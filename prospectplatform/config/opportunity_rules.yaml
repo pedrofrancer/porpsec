@@ -52,3 +52,40 @@ rules:
     condition_value: "3000"
     suggested_solution: "Otimização de Performance"
     priority: "media"
+
+  - name: meta_inadequada
+    description: "Meta tags ausentes ou com conteúdo insuficiente"
+    condition_field: "meta_title_length"
+    condition_operator: "lt"
+    condition_value: "10"
+    suggested_solution: "Otimização SEO Básica"
+    priority: "media"
+
+  - name: sem_viewport_mobile
+    description: "Site não responsivo (sem meta viewport)"
+    condition_field: "has_viewport"
+    condition_operator: "is_false"
+    suggested_solution: "Design Responsivo"
+    priority: "alta"
+
+  - name: instagram_inativo
+    description: "Instagram sem publicações nos últimos 30 dias"
+    condition_field: "instagram_active"
+    condition_operator: "is_false"
+    suggested_solution: "Gestão de Redes Sociais"
+    priority: "media"
+
+  - name: google_business_incompleto
+    description: "Perfil do Google Business incompleto"
+    condition_field: "google_business_complete"
+    condition_operator: "is_false"
+    suggested_solution: "Otimização Google Business"
+    priority: "alta"
+
+  - name: blog_parado
+    description: "Blog/site sem conteúdo recente (6+ meses)"
+    condition_field: "blog_freshness_days"
+    condition_operator: "gt"
+    condition_value: "180"
+    suggested_solution: "Marketing de Conteúdo"
+    priority: "baixa"

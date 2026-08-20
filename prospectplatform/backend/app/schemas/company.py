@@ -12,6 +12,7 @@ class CompanyBase(BaseModel):
     phone: str | None = None
     website: str | None = None
     instagram: str | None = None
+    facebook: str | None = None
 
 
 class CompanyCreate(CompanyBase):

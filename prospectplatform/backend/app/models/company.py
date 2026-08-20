@@ -21,6 +21,7 @@ class Company(TimestampMixin, Base):
     phone: Mapped[str | None] = mapped_column(String(30))
     website: Mapped[str | None] = mapped_column(String(500))
     instagram: Mapped[str | None] = mapped_column(String(200))
+    facebook: Mapped[str | None] = mapped_column(String(200))
 
     google_place_id: Mapped[str | None] = mapped_column(String(200), unique=True)
     google_rating: Mapped[float | None] = mapped_column(Float)

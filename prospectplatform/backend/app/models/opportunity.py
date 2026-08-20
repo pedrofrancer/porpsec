@@ -28,7 +28,7 @@ class Opportunity(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id"), nullable=False)
-    audit_id: Mapped[int] = mapped_column(ForeignKey("audits.id"), nullable=False)
+    audit_id: Mapped[int | None] = mapped_column(ForeignKey("audits.id"))
     rule_id: Mapped[int | None] = mapped_column(ForeignKey("opportunity_rules.id"))
 
     problem: Mapped[str] = mapped_column(String(500), nullable=False)
