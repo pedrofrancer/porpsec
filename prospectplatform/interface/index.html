@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProspectPlatform</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
+        .header { background: #1e293b; padding: 1rem 2rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.25rem; color: #38bdf8; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; text-align: center; }
+        .stat-card .number { font-size: 2rem; font-weight: 700; color: #38bdf8; }
+        .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem; }
+        .filters { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+        .filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
+        .filter-group label { font-size: 0.75rem; color: #94a3b8; }
+        .filter-group select, .filter-group input { background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; }
+        .btn { background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
+        .btn:hover { background: #1d4ed8; }
+        .btn-success { background: #16a34a; }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: #dc2626; }
+        .btn-danger:hover { background: #b91c1c; }
+        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
+        th { background: #334155; text-align: left; padding: 0.75rem 1rem; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
+        td { padding: 0.75rem 1rem; border-top: 1px solid #334155; font-size: 0.9rem; }
+        tr:hover td { background: #1a2332; }
+        .score { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem; }
+        .score-high { background: #166534; color: #4ade80; }
+        .score-mid { background: #854d0e; color: #facc15; }
+        .score-low { background: #991b1b; color: #fca5a5; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; }
+        .modal-overlay.active { display: flex; }
+        .modal { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal h2 { color: #38bdf8; margin-bottom: 1rem; }
+        .modal p { margin-bottom: 0.5rem; line-height: 1.5; }
+        .modal .field-label { color: #94a3b8; font-size: 0.8rem; }
+        .modal .field-value { color: #e2e8f0; margin-bottom: 0.75rem; }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+        .upload-area { background: #0f172a; border: 2px dashed #475569; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; margin-bottom: 1.5rem; }
+        .upload-area:hover { border-color: #38bdf8; }
+        .upload-area p { color: #94a3b8; }
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; display: none; z-index: 200; }
+        .toast.error { background: #dc2626; }
+        .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+        .pagination button { background: #334155; border: none; color: #e2e8f0; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+        .pagination button.active { background: #2563eb; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>ProspectPlatform</h1>
+        <span style="color: #64748b; font-size: 0.85rem;">Fase 1 — Inteligência Comercial B2B</span>
+    </div>
+    <div class="container">
+        <div class="stats" id="stats"></div>
+
+        <div class="upload-area" id="uploadArea">
+            <p>Clique ou arraste um CSV para importar empresas</p>
+            <input type="file" id="csvInput" accept=".csv" style="display:none">
+        </div>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label>Cidade</label>
+                <select id="filterCity"><option value="">Todas</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Categoria</label>
+                <select id="filterCategory"><option value="">Todas</option></select>
+            </div>
+            <div class="filter-group">
+                <label>Buscar</label>
+                <input type="text" id="filterSearch" placeholder="Nome...">
+            </div>
+            <button class="btn" onclick="loadCompanies()">Filtrar</button>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Nome</th>
+                    <th>Cidade</th>
+                    <th>Categoria</th>
+                    <th>Telefone</th>
+                    <th>Website</th>
+                    <th>Fonte</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="companiesTable"></tbody>
+        </table>
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modalContent"></div>
+    </div>
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API = '/api/v1';
+        let currentPage = 1;
+        let cities = [];
+        let categories = [];
+
+        async function api(path, opts = {}) {
+            const res = await fetch(API + path, opts);
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
+                throw new Error(err.detail || 'Erro');
+            }
+            return res.json();
+        }
+
+        function showToast(msg, isError = false) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = 'toast' + (isError ? ' error' : '');
+            t.style.display = 'block';
+            setTimeout(() => t.style.display = 'none', 3000);
+        }
+
+        function scoreClass(score) {
+            if (score >= 70) return 'score-high';
+            if (score >= 40) return 'score-mid';
+            return 'score-low';
+        }
+
+        async function loadStats() {
+            const data = await api('/companies/?size=1');
+            document.getElementById('stats').innerHTML = `
+                <div class="stat-card"><div class="number">${data.total}</div><div class="label">Empresas</div></div>
+            `;
+        }
+
+        async function loadFilters() {
+            if (cities.length === 0) {
+                const states = await api('/geography/states?country_id=1');
+                for (const state of states) {
+                    const stateCities = await api(`/geography/cities?state_id=${state.id}`);
+                    cities = cities.concat(stateCities);
+                }
+                const sel = document.getElementById('filterCity');
+                cities.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    sel.appendChild(opt);
+                });
+            }
+            if (categories.length === 0) {
+                categories = await api('/categories/');
+                const sel = document.getElementById('filterCategory');
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    sel.appendChild(opt);
+                });
+            }
+        }
+
+        async function loadCompanies(page = 1) {
+            currentPage = page;
+            const params = new URLSearchParams({ page, size: 20 });
+            const cityId = document.getElementById('filterCity').value;
+            const catId = document.getElementById('filterCategory').value;
+            const search = document.getElementById('filterSearch').value;
+            if (cityId) params.set('city_id', cityId);
+            if (catId) params.set('category_id', catId);
+            if (search) params.set('search', search);
+
+            const data = await api('/companies/?' + params);
+            const tbody = document.getElementById('companiesTable');
+            tbody.innerHTML = data.items.map(c => `
+                <tr>
+                    <td><strong>${c.name}</strong></td>
+                    <td>${c.city_id}</td>
+                    <td>${c.category_id}</td>
+                    <td>${c.phone || '-'}</td>
+                    <td>${c.website ? '<a href="' + c.website + '" target="_blank" style="color:#38bdf8">Abrir</a>' : '<span style="color:#64748b">Não tem</span>'}</td>
+                    <td>${c.source}</td>
+                    <td><button class="btn" onclick="viewCompany(${c.id})">Ver</button></td>
+                </tr>
+            `).join('');
+
+            const pag = document.getElementById('pagination');
+            pag.innerHTML = '';
+            for (let i = 1; i <= data.pages; i++) {
+                const btn = document.createElement('button');
+                btn.textContent = i;
+                btn.className = i === currentPage ? 'active' : '';
+                btn.onclick = () => loadCompanies(i);
+                pag.appendChild(btn);
+            }
+        }
+
+        async function viewCompany(id) {
+            try {
+                const c = await api(`/companies/${id}`);
+                document.getElementById('modalContent').innerHTML = `
+                    <h2>${c.name}</h2>
+                    <p><span class="field-label">Cidade:</span> <span class="field-value">${c.city_name || c.city_id}</span></p>
+                    <p><span class="field-label">Categoria:</span> <span class="field-value">${c.category_name || c.category_id}</span></p>
+                    <p><span class="field-label">Telefone:</span> <span class="field-value">${c.phone || 'Não informado'}</span></p>
+                    <p><span class="field-label">Website:</span> <span class="field-value">${c.website || 'Não possui'}</span></p>
+                    <p><span class="field-label">Instagram:</span> <span class="field-value">${c.instagram || 'Não informado'}</span></p>
+                    <p><span class="field-label">Google Rating:</span> <span class="field-value">${c.google_rating || 'Sem avaliação'}</span></p>
+                    <p><span class="field-label">Fonte:</span> <span class="field-value">${c.source}</span></p>
+                    <div class="modal-actions">
+                        <button class="btn" onclick="closeModal()">Fechar</button>
+                    </div>
+                `;
+                document.getElementById('modalOverlay').classList.add('active');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        document.getElementById('modalOverlay').addEventListener('click', e => {
+            if (e.target === e.currentTarget) closeModal();
+        });
+
+        document.getElementById('uploadArea').addEventListener('click', () => {
+            document.getElementById('csvInput').click();
+        });
+
+        document.getElementById('uploadArea').addEventListener('dragover', e => {
+            e.preventDefault();
+            e.currentTarget.style.borderColor = '#38bdf8';
+        });
+
+        document.getElementById('uploadArea').addEventListener('dragleave', e => {
+            e.currentTarget.style.borderColor = '#475569';
+        });
+
+        document.getElementById('uploadArea').addEventListener('drop', e => {
+            e.preventDefault();
+            e.currentTarget.style.borderColor = '#475569';
+            if (e.dataTransfer.files.length) uploadCSV(e.dataTransfer.files[0]);
+        });
+
+        document.getElementById('csvInput').addEventListener('change', e => {
+            if (e.target.files.length) uploadCSV(e.target.files[0]);
+        });
+
+        async function uploadCSV(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const result = await api('/import/csv', { method: 'POST', body: formData });
+                showToast(`Importado: ${result.stats.imported} | Duplicados: ${result.stats.skipped_duplicates}`);
+                loadStats();
+                loadCompanies();
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        loadStats();
+        loadFilters();
+        loadCompanies();
+    </script>
+</body>
+</html>

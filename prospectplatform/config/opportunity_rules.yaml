@@ -1,0 +1,54 @@
+rules:
+  - name: sem_site
+    description: "Empresa não possui website"
+    condition_field: "website"
+    condition_operator: "is_empty"
+    suggested_solution: "Website Institucional"
+    priority: "alta"
+
+  - name: site_sem_whatsapp
+    description: "Website sem botão/link de WhatsApp visível"
+    condition_field: "has_whatsapp"
+    condition_operator: "is_false"
+    suggested_solution: "Integração WhatsApp"
+    priority: "media"
+
+  - name: sem_agendamento_barbearia
+    description: "Barbearia sem agendamento online"
+    condition_field: "has_scheduling"
+    condition_operator: "is_false"
+    required_categories: ["barbearia"]
+    suggested_solution: "Sistema de Agendamento"
+    priority: "alta"
+
+  - name: sem_agendamento_salao
+    description: "Salão sem agendamento online"
+    condition_field: "has_scheduling"
+    condition_operator: "is_false"
+    required_categories: ["salao-de-beleza"]
+    suggested_solution: "Sistema de Agendamento"
+    priority: "alta"
+
+  - name: sem_agendamento_clinica
+    description: "Clínica sem agendamento online"
+    condition_field: "has_scheduling"
+    condition_operator: "is_false"
+    required_categories: ["clinica"]
+    suggested_solution: "Sistema de Agendamento"
+    priority: "alta"
+
+  - name: sem_agendamento_academia
+    description: "Academia sem agendamento online"
+    condition_field: "has_scheduling"
+    condition_operator: "is_false"
+    required_categories: ["academia"]
+    suggested_solution: "Sistema de Agendamento"
+    priority: "alta"
+
+  - name: site_lento
+    description: "Website com tempo de resposta > 3s"
+    condition_field: "response_time_ms"
+    condition_operator: "gt"
+    condition_value: "3000"
+    suggested_solution: "Otimização de Performance"
+    priority: "media"
