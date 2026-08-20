@@ -9,24 +9,35 @@
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
         .header { background: #1e293b; padding: 1rem 2rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
         .header h1 { font-size: 1.25rem; color: #38bdf8; }
+        .nav { display: flex; gap: 0.5rem; }
+        .nav-btn { background: transparent; border: 1px solid #475569; color: #94a3b8; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+        .nav-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
+        .nav-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
         .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .page { display: none; }
+        .page.active { display: block; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
         .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; text-align: center; }
-        .stat-card .number { font-size: 2rem; font-weight: 700; color: #38bdf8; }
-        .stat-card .label { font-size: 0.8rem; color: #94a3b8; margin-top: 0.25rem; }
+        .stat-card .number { font-size: 1.8rem; font-weight: 700; color: #38bdf8; }
+        .stat-card .label { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; }
         .filters { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
         .filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
         .filter-group label { font-size: 0.75rem; color: #94a3b8; }
         .filter-group select, .filter-group input { background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; }
         .btn { background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
         .btn:hover { background: #1d4ed8; }
+        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
         .btn-success { background: #16a34a; }
         .btn-success:hover { background: #15803d; }
+        .btn-warning { background: #d97706; }
+        .btn-warning:hover { background: #b45309; }
         .btn-danger { background: #dc2626; }
         .btn-danger:hover { background: #b91c1c; }
+        .btn-outline { background: transparent; border: 1px solid #475569; color: #94a3b8; }
+        .btn-outline:hover { border-color: #38bdf8; color: #e2e8f0; }
         table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
-        th { background: #334155; text-align: left; padding: 0.75rem 1rem; font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; }
-        td { padding: 0.75rem 1rem; border-top: 1px solid #334155; font-size: 0.9rem; }
+        th { background: #334155; text-align: left; padding: 0.75rem 1rem; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; }
+        td { padding: 0.75rem 1rem; border-top: 1px solid #334155; font-size: 0.85rem; }
         tr:hover td { background: #1a2332; }
         .score { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem; }
         .score-high { background: #166534; color: #4ade80; }
@@ -34,69 +45,132 @@
         .score-low { background: #991b1b; color: #fca5a5; }
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; }
         .modal-overlay.active { display: flex; }
-        .modal { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; }
-        .modal h2 { color: #38bdf8; margin-bottom: 1rem; }
-        .modal p { margin-bottom: 0.5rem; line-height: 1.5; }
-        .modal .field-label { color: #94a3b8; font-size: 0.8rem; }
-        .modal .field-value { color: #e2e8f0; margin-bottom: 0.75rem; }
-        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; }
+        .modal { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; max-width: 700px; width: 95%; max-height: 85vh; overflow-y: auto; }
+        .modal h2 { color: #38bdf8; margin-bottom: 1rem; font-size: 1.1rem; }
+        .modal h3 { color: #38bdf8; margin: 1rem 0 0.5rem; font-size: 0.95rem; }
+        .modal p { margin-bottom: 0.5rem; line-height: 1.5; font-size: 0.85rem; }
+        .modal .field-label { color: #94a3b8; }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; flex-wrap: wrap; }
         .upload-area { background: #0f172a; border: 2px dashed #475569; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; margin-bottom: 1.5rem; }
         .upload-area:hover { border-color: #38bdf8; }
         .upload-area p { color: #94a3b8; }
-        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; display: none; z-index: 200; }
+        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; display: none; z-index: 200; font-size: 0.85rem; }
         .toast.error { background: #dc2626; }
         .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
-        .pagination button { background: #334155; border: none; color: #e2e8f0; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; }
+        .pagination button { background: #334155; border: none; color: #e2e8f0; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
         .pagination button.active { background: #2563eb; }
         .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .issue { background: #991b1b33; border-left: 3px solid #dc2626; padding: 0.4rem 0.6rem; margin: 0.3rem 0; border-radius: 0 4px 4px 0; font-size: 0.8rem; }
+        .ok { color: #4ade80; }
+        .warn { color: #facc15; }
+        .bad { color: #f87171; }
+        .diag-section { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
+        .diag-section h4 { color: #38bdf8; font-size: 0.85rem; margin-bottom: 0.5rem; }
+        .diag-row { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.8rem; border-bottom: 1px solid #1e293b; }
+        .outreach-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; }
+        .badge { display: inline-block; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
+        .badge-alta { background: #991b1b; color: #fca5a5; }
+        .badge-media { background: #854d0e; color: #facc15; }
+        .badge-baixa { background: #166534; color: #4ade80; }
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #475569; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>ProspectPlatform</h1>
-        <span style="color: #64748b; font-size: 0.85rem;">Fase 1 — Inteligência Comercial B2B</span>
+        <div class="nav">
+            <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="showPage('companies')">Empresas</button>
+            <button class="nav-btn" onclick="showPage('queue')">Fila</button>
+            <button class="nav-btn" onclick="showPage('optout')">Opt-out</button>
+        </div>
     </div>
     <div class="container">
-        <div class="stats" id="stats"></div>
 
-        <div class="upload-area" id="uploadArea">
-            <p>Clique ou arraste um CSV para importar empresas</p>
-            <input type="file" id="csvInput" accept=".csv" style="display:none">
+        <!-- DASHBOARD -->
+        <div class="page active" id="page-dashboard">
+            <div class="stats" id="stats"></div>
+            <div class="upload-area" id="uploadArea">
+                <p>Clique ou arraste um CSV para importar empresas</p>
+                <input type="file" id="csvInput" accept=".csv" style="display:none">
+            </div>
         </div>
 
-        <div class="filters">
-            <div class="filter-group">
-                <label>Cidade</label>
-                <select id="filterCity"><option value="">Todas</option></select>
+        <!-- EMPRESAS -->
+        <div class="page" id="page-companies">
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Cidade</label>
+                    <select id="filterCity"><option value="">Todas</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>Categoria</label>
+                    <select id="filterCategory"><option value="">Todas</option></select>
+                </div>
+                <div class="filter-group">
+                    <label>Buscar</label>
+                    <input type="text" id="filterSearch" placeholder="Nome...">
+                </div>
+                <button class="btn" onclick="loadCompanies()">Filtrar</button>
             </div>
-            <div class="filter-group">
-                <label>Categoria</label>
-                <select id="filterCategory"><option value="">Todas</option></select>
-            </div>
-            <div class="filter-group">
-                <label>Buscar</label>
-                <input type="text" id="filterSearch" placeholder="Nome...">
-            </div>
-            <button class="btn" onclick="loadCompanies()">Filtrar</button>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nome</th>
+                        <th>Cidade</th>
+                        <th>Categoria</th>
+                        <th>Telefone</th>
+                        <th>Score</th>
+                        <th>Acoes</th>
+                    </tr>
+                </thead>
+                <tbody id="companiesTable"></tbody>
+            </table>
+            <div class="pagination" id="pagination"></div>
         </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Cidade</th>
-                    <th>Categoria</th>
-                    <th>Telefone</th>
-                    <th>Website</th>
-                    <th>Fonte</th>
-                    <th>Ações</th>
-                </tr>
-            </thead>
-            <tbody id="companiesTable"></tbody>
-        </table>
-        <div class="pagination" id="pagination"></div>
+        <!-- FILA -->
+        <div class="page" id="page-queue">
+            <div class="stats" id="queueStats"></div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Status</th>
+                        <th>Criado em</th>
+                        <th>Acoes</th>
+                    </tr>
+                </thead>
+                <tbody id="queueTable"></tbody>
+            </table>
+        </div>
+
+        <!-- OPT-OUT -->
+        <div class="page" id="page-optout">
+            <div style="margin-bottom:1rem">
+                <h3 style="color:#38bdf8;margin-bottom:0.5rem">Registrar Opt-out</h3>
+                <div style="display:flex;gap:0.5rem">
+                    <input type="text" id="optoutId" placeholder="Telefone ou @instagram" style="background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;flex:1">
+                    <input type="text" id="optoutReason" placeholder="Motivo (opcional)" style="background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;flex:1">
+                    <button class="btn btn-danger" onclick="addOptOut()">Registrar</button>
+                </div>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Identificador</th>
+                        <th>Motivo</th>
+                        <th>Fonte</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+                <tbody id="optoutTable"></tbody>
+            </table>
+        </div>
     </div>
 
+    <!-- MODAL -->
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal" id="modalContent"></div>
     </div>
@@ -131,6 +205,23 @@
             return 'score-low';
         }
 
+        function formatDate(d) {
+            if (!d) return '-';
+            return new Date(d).toLocaleDateString('pt-BR');
+        }
+
+        function showPage(name) {
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            document.getElementById('page-' + name).classList.add('active');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (name === 'queue') loadQueue();
+            if (name === 'optout') loadOptOuts();
+            if (name === 'companies') loadCompanies();
+            if (name === 'dashboard') loadStats();
+        }
+
+        // --- DASHBOARD ---
         async function loadStats() {
             const data = await api('/companies/?size=1');
             document.getElementById('stats').innerHTML = `
@@ -138,30 +229,35 @@
             `;
         }
 
+        // --- COMPANIES ---
         async function loadFilters() {
             if (cities.length === 0) {
-                const states = await api('/geography/states?country_id=1');
-                for (const state of states) {
-                    const stateCities = await api(`/geography/cities?state_id=${state.id}`);
-                    cities = cities.concat(stateCities);
-                }
-                const sel = document.getElementById('filterCity');
-                cities.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.name;
-                    sel.appendChild(opt);
-                });
+                try {
+                    const states = await api('/geography/states?country_id=1');
+                    for (const state of states) {
+                        const stateCities = await api(`/geography/cities?state_id=${state.id}`);
+                        cities = cities.concat(stateCities);
+                    }
+                    const sel = document.getElementById('filterCity');
+                    cities.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.name;
+                        sel.appendChild(opt);
+                    });
+                } catch(e) {}
             }
             if (categories.length === 0) {
-                categories = await api('/categories/');
-                const sel = document.getElementById('filterCategory');
-                categories.forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.id;
-                    opt.textContent = c.name;
-                    sel.appendChild(opt);
-                });
+                try {
+                    categories = await api('/categories/');
+                    const sel = document.getElementById('filterCategory');
+                    categories.forEach(c => {
+                        const opt = document.createElement('option');
+                        opt.value = c.id;
+                        opt.textContent = c.name;
+                        sel.appendChild(opt);
+                    });
+                } catch(e) {}
             }
         }
 
@@ -180,12 +276,16 @@
             tbody.innerHTML = data.items.map(c => `
                 <tr>
                     <td><strong>${c.name}</strong></td>
-                    <td>${c.city_id}</td>
-                    <td>${c.category_id}</td>
+                    <td>${c.city_name || c.city_id}</td>
+                    <td>${c.category_name || c.category_id}</td>
                     <td>${c.phone || '-'}</td>
-                    <td>${c.website ? '<a href="' + c.website + '" target="_blank" style="color:#38bdf8">Abrir</a>' : '<span style="color:#64748b">Não tem</span>'}</td>
-                    <td>${c.source}</td>
-                    <td><button class="btn" onclick="viewCompany(${c.id})">Ver</button></td>
+                    <td>${c.google_rating ? `<span class="score ${scoreClass(c.google_rating * 20)}">${c.google_rating}</span>` : '<span style="color:#64748b">-</span>'}</td>
+                    <td>
+                        <button class="btn btn-sm" onclick="viewCompany(${c.id})">Detalhes</button>
+                        <button class="btn btn-sm btn-outline" onclick="runAudit(${c.id})">Auditar</button>
+                        <button class="btn btn-sm btn-success" onclick="getOutreach(${c.id})">Abordagem</button>
+                        <button class="btn btn-sm btn-warning" onclick="addToQueue(${c.id})">+Fila</button>
+                    </td>
                 </tr>
             `).join('');
 
@@ -203,16 +303,29 @@
         async function viewCompany(id) {
             try {
                 const c = await api(`/companies/${id}`);
+                let diagHtml = '<p style="color:#94a3b8">Clique em "Diagnosticar" para carregar o diagnostico completo.</p>';
+                try {
+                    const d = await api(`/companies/${id}/diagnosis`);
+                    diagHtml = renderDiagnosis(d);
+                } catch(e) {}
+
                 document.getElementById('modalContent').innerHTML = `
                     <h2>${c.name}</h2>
-                    <p><span class="field-label">Cidade:</span> <span class="field-value">${c.city_name || c.city_id}</span></p>
-                    <p><span class="field-label">Categoria:</span> <span class="field-value">${c.category_name || c.category_id}</span></p>
-                    <p><span class="field-label">Telefone:</span> <span class="field-value">${c.phone || 'Não informado'}</span></p>
-                    <p><span class="field-label">Website:</span> <span class="field-value">${c.website || 'Não possui'}</span></p>
-                    <p><span class="field-label">Instagram:</span> <span class="field-value">${c.instagram || 'Não informado'}</span></p>
-                    <p><span class="field-label">Google Rating:</span> <span class="field-value">${c.google_rating || 'Sem avaliação'}</span></p>
-                    <p><span class="field-label">Fonte:</span> <span class="field-value">${c.source}</span></p>
+                    <div class="diag-section">
+                        <div class="diag-row"><span class="field-label">Cidade</span><span>${c.city_name || c.city_id}</span></div>
+                        <div class="diag-row"><span class="field-label">Categoria</span><span>${c.category_name || c.category_id}</span></div>
+                        <div class="diag-row"><span class="field-label">Telefone</span><span>${c.phone || 'Nao informado'}</span></div>
+                        <div class="diag-row"><span class="field-label">Website</span><span>${c.website || 'Nao possui'}</span></div>
+                        <div class="diag-row"><span class="field-label">Instagram</span><span>${c.instagram || 'Nao informado'}</span></div>
+                        <div class="diag-row"><span class="field-label">Nota Google</span><span>${c.google_rating || '-'}</span></div>
+                        <div class="diag-row"><span class="field-label">Avaliacoes</span><span>${c.google_review_count || '-'}</span></div>
+                        <div class="diag-row"><span class="field-label">Fonte</span><span>${c.source}</span></div>
+                    </div>
+                    <h3>Diagnostico Digital</h3>
+                    ${diagHtml}
                     <div class="modal-actions">
+                        <button class="btn btn-success" onclick="getOutreach(${c.id})">Gerar Abordagem</button>
+                        <button class="btn btn-warning" onclick="addToQueue(${c.id})">Adicionar a Fila</button>
                         <button class="btn" onclick="closeModal()">Fechar</button>
                     </div>
                 `;
@@ -222,33 +335,167 @@
             }
         }
 
+        function renderDiagnosis(d) {
+            const dp = d.digital_presence;
+            const ca = d.communication_automation;
+            let html = '';
+
+            html += `<div class="diag-section"><h4>Score Digital: <span class="score ${scoreClass(dp.digital_score)}">${dp.digital_score}/100</span></h4>`;
+            if (dp.website.exists) {
+                html += `<div class="diag-row"><span>Site</span><span class="${dp.website.issues.length ? 'bad' : 'ok'}">${dp.website.issues.length ? dp.website.issues.join(', ') : 'OK'}</span></div>`;
+            } else {
+                html += `<div class="diag-row"><span>Site</span><span class="bad">Nao possui</span></div>`;
+            }
+            html += `<div class="diag-row"><span>Instagram</span><span class="${dp.instagram.issues.length ? 'warn' : 'ok'}">${dp.instagram.exists ? (dp.instagram.issues.length ? dp.instagram.issues.join(', ') : 'Ativo') : 'Nao informado'}</span></div>`;
+            html += `<div class="diag-row"><span>Google Business</span><span class="${dp.google_business.exists ? 'ok' : 'bad'}">${dp.google_business.exists ? 'Completo' : 'Incompleto'}</span></div>`;
+            html += `</div>`;
+
+            html += `<div class="diag-section"><h4>Comunicacao</h4>`;
+            html += `<div class="diag-row"><span>WhatsApp</span><span class="${ca.whatsapp_signals.exists ? 'ok' : 'bad'}">${ca.whatsapp_signals.exists ? 'Visivel' : 'Nao detectado'}</span></div>`;
+            html += `<div class="diag-row"><span>Agendamento</span><span class="${ca.scheduling.exists ? 'ok' : 'bad'}">${ca.scheduling.exists ? 'Sim' : 'Nao'}</span></div>`;
+            html += `<div class="diag-row"><span>CTA</span><span class="${ca.cta_presence.exists ? 'ok' : 'bad'}">${ca.cta_presence.exists ? 'Sim' : 'Nao detectado'}</span></div>`;
+            html += `</div>`;
+
+            if (d.recommendations.length > 0) {
+                html += `<div class="diag-section"><h4>Recomendacoes</h4>`;
+                d.recommendations.forEach(r => {
+                    const cls = r.priority === 'alta' ? 'badge-alta' : r.priority === 'media' ? 'badge-media' : 'badge-baixa';
+                    html += `<div style="margin:0.4rem 0"><span class="badge ${cls}">${r.priority}</span> <strong>${r.solution}</strong><br><span style="font-size:0.8rem;color:#94a3b8">${r.evidence}</span></div>`;
+                });
+                html += `</div>`;
+            }
+
+            return html;
+        }
+
+        async function runAudit(id) {
+            showToast('Iniciando auditoria...');
+            try {
+                await api(`/audits/${id}/audit`, { method: 'POST' });
+                showToast('Auditoria concluida!');
+                viewCompany(id);
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        async function getOutreach(id) {
+            showToast('Gerando mensagem...');
+            try {
+                const data = await api(`/companies/${id}/outreach`);
+                document.getElementById('modalContent').innerHTML = `
+                    <h2>Abordagem - ${data.company_name}</h2>
+                    <p><span class="field-label">Telefone:</span> ${data.phone || 'Nao informado'}</p>
+                    <div class="outreach-box">${data.message}</div>
+                    <div class="modal-actions">
+                        <button class="btn btn-success" onclick="addToQueue(${id}); closeModal()">Adicionar a Fila</button>
+                        <button class="btn" onclick="closeModal()">Fechar</button>
+                    </div>
+                `;
+                document.getElementById('modalOverlay').classList.add('active');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        async function addToQueue(id) {
+            try {
+                await api(`/prospection/queue/${id}`, { method: 'POST' });
+                showToast('Adicionado a fila!');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        // --- QUEUE ---
+        async function loadQueue() {
+            try {
+                const entries = await api('/prospection/queue');
+                const rl = await api('/prospection/rate-limit');
+                document.getElementById('queueStats').innerHTML = `
+                    <div class="stat-card"><div class="number">${entries.length}</div><div class="label">Na Fila</div></div>
+                    <div class="stat-card"><div class="number">${rl.sent_today}</div><div class="label">Enviados Hoje</div></div>
+                    <div class="stat-card"><div class="number">${rl.remaining}</div><div class="label">Restantes</div></div>
+                `;
+                const tbody = document.getElementById('queueTable');
+                tbody.innerHTML = entries.map(e => `
+                    <tr>
+                        <td>${e.company_id}</td>
+                        <td><span class="badge ${e.status === 'PENDENTE' ? 'badge-media' : e.status === 'ENVIADO' ? 'badge-baixa' : 'badge-alta'}">${e.status}</span></td>
+                        <td>${formatDate(e.created_at)}</td>
+                        <td>
+                            <button class="btn btn-sm" onclick="viewCompany(${e.company_id})">Ver</button>
+                            <button class="btn btn-sm btn-success" onclick="getOutreach(${e.company_id})">Abordagem</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        // --- OPT-OUT ---
+        async function loadOptOuts() {
+            try {
+                const entries = await api('/prospection/opt-outs');
+                const tbody = document.getElementById('optoutTable');
+                tbody.innerHTML = entries.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:#64748b">Nenhum opt-out registrado</td></tr>' :
+                    entries.map(e => `
+                        <tr>
+                            <td>${e.contact_identifier}</td>
+                            <td>${e.reason || '-'}</td>
+                            <td>${e.source || '-'}</td>
+                            <td>${formatDate(e.created_at)}</td>
+                        </tr>
+                    `).join('');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        async function addOptOut() {
+            const id = document.getElementById('optoutId').value.trim();
+            const reason = document.getElementById('optoutReason').value.trim();
+            if (!id) { showToast('Informe o identificador', true); return; }
+            try {
+                await api('/prospection/opt-out', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier: id, reason: reason || null })
+                });
+                showToast('Opt-out registrado!');
+                document.getElementById('optoutId').value = '';
+                document.getElementById('optoutReason').value = '';
+                loadOptOuts();
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        // --- MODAL ---
         function closeModal() {
             document.getElementById('modalOverlay').classList.remove('active');
         }
-
         document.getElementById('modalOverlay').addEventListener('click', e => {
             if (e.target === e.currentTarget) closeModal();
         });
 
+        // --- UPLOAD ---
         document.getElementById('uploadArea').addEventListener('click', () => {
             document.getElementById('csvInput').click();
         });
-
         document.getElementById('uploadArea').addEventListener('dragover', e => {
             e.preventDefault();
             e.currentTarget.style.borderColor = '#38bdf8';
         });
-
         document.getElementById('uploadArea').addEventListener('dragleave', e => {
             e.currentTarget.style.borderColor = '#475569';
         });
-
         document.getElementById('uploadArea').addEventListener('drop', e => {
             e.preventDefault();
             e.currentTarget.style.borderColor = '#475569';
             if (e.dataTransfer.files.length) uploadCSV(e.dataTransfer.files[0]);
         });
-
         document.getElementById('csvInput').addEventListener('change', e => {
             if (e.target.files.length) uploadCSV(e.target.files[0]);
         });
@@ -266,6 +513,7 @@
             }
         }
 
+        // --- INIT ---
         loadStats();
         loadFilters();
         loadCompanies();
