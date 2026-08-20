@@ -83,6 +83,7 @@
             <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
             <button class="nav-btn" onclick="showPage('companies')">Empresas</button>
             <button class="nav-btn" onclick="showPage('queue')">Fila</button>
+            <button class="nav-btn" onclick="showPage('envios')">Envios</button>
             <button class="nav-btn" onclick="showPage('optout')">Opt-out</button>
         </div>
     </div>
@@ -91,6 +92,19 @@
         <!-- DASHBOARD -->
         <div class="page active" id="page-dashboard">
             <div class="stats" id="stats"></div>
+
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.5rem">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                    <h3 style="color:#38bdf8;font-size:0.95rem">Dispatcher</h3>
+                    <div style="display:flex;gap:0.5rem">
+                        <button class="btn btn-sm btn-success" onclick="dispatcherAction('resume')">Iniciar</button>
+                        <button class="btn btn-sm btn-warning" onclick="dispatcherAction('pause')">Pausar</button>
+                        <button class="btn btn-sm" onclick="dispatcherAction('run')">Ciclo manual</button>
+                    </div>
+                </div>
+                <div class="stats" id="dispatcherStatus" style="margin-bottom:0"></div>
+            </div>
+
             <div class="upload-area" id="uploadArea">
                 <p>Clique ou arraste um CSV para importar empresas</p>
                 <input type="file" id="csvInput" accept=".csv" style="display:none">
@@ -168,6 +182,39 @@
                 <tbody id="optoutTable"></tbody>
             </table>
         </div>
+
+        <!-- ENVIOS -->
+        <div class="page" id="page-envios">
+            <div class="stats" id="msgStats"></div>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Status</label>
+                    <select id="msgFilterStatus">
+                        <option value="">Todos</option>
+                        <option value="rascunho">Rascunho</option>
+                        <option value="aprovado">Aprovado</option>
+                        <option value="enviado">Enviado</option>
+                        <option value="erro_envio">Erro Envio</option>
+                        <option value="erro_validacao">Erro Validacao</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="loadMessages()">Filtrar</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Empresa</th>
+                        <th>Status</th>
+                        <th>Mensagem</th>
+                        <th>Gerada em</th>
+                        <th>Enviada em</th>
+                        <th>Erro</th>
+                    </tr>
+                </thead>
+                <tbody id="msgTable"></tbody>
+            </table>
+        </div>
     </div>
 
     <!-- MODAL -->
@@ -218,7 +265,8 @@
             if (name === 'queue') loadQueue();
             if (name === 'optout') loadOptOuts();
             if (name === 'companies') loadCompanies();
-            if (name === 'dashboard') loadStats();
+            if (name === 'dashboard') { loadStats(); loadDispatcherStatus(); }
+            if (name === 'envios') { loadMsgStats(); loadMessages(); }
         }
 
         // --- DASHBOARD ---
@@ -517,6 +565,82 @@
         loadStats();
         loadFilters();
         loadCompanies();
+        loadDispatcherStatus();
+
+        // --- DISPATCHER ---
+        async function loadDispatcherStatus() {
+            try {
+                const s = await api('/dispatcher/status');
+                const wh = document.getElementById('dispatcherStatus');
+                const statusColor = s.paused ? '#facc15' : s.circuit_open ? '#f87171' : '#4ade80';
+                const statusText = s.circuit_open ? 'CIRCUIT BREAKER' : s.paused ? 'Pausado' : 'Rodando';
+                wh.innerHTML = `
+                    <div class="stat-card"><div class="number" style="color:${statusColor};font-size:1.2rem">${statusText}</div><div class="label">Status</div></div>
+                    <div class="stat-card"><div class="number">${s.warmup_day}</div><div class="label">Dia Warmup</div></div>
+                    <div class="stat-card"><div class="number">${s.warmup_max_today}</div><div class="label">Max Hoje</div></div>
+                    <div class="stat-card"><div class="number">${s.last_error ? s.last_error.substring(0, 20) : 'Nenhum'}</div><div class="label">Ultimo Erro</div></div>
+                    <div class="stat-card"><div class="number">${s.started_at ? new Date(s.started_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Iniciado</div></div>
+                    <div class="stat-card"><div class="number">${s.last_cycle_at ? new Date(s.last_cycle_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Ultimo Ciclo</div></div>
+                `;
+            } catch (e) {}
+        }
+
+        async function dispatcherAction(action) {
+            try {
+                await api(`/dispatcher/${action}`, { method: 'POST' });
+                showToast(action === 'pause' ? 'Dispatcher pausado' : action === 'resume' ? 'Dispatcher retomado' : 'Ciclo iniciado');
+                setTimeout(loadDispatcherStatus, 500);
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
+
+        // --- MESSAGES ---
+        async function loadMsgStats() {
+            try {
+                const s = await api('/messages/stats');
+                document.getElementById('msgStats').innerHTML = `
+                    <div class="stat-card"><div class="number">${s.total}</div><div class="label">Total</div></div>
+                    <div class="stat-card"><div class="number">${s.rascunho}</div><div class="label">Rascunho</div></div>
+                    <div class="stat-card"><div class="number">${s.aprovado}</div><div class="label">Aprovado</div></div>
+                    <div class="stat-card"><div class="number">${s.enviado}</div><div class="label">Enviado</div></div>
+                    <div class="stat-card"><div class="number">${s.erro_envio}</div><div class="label">Erro Envio</div></div>
+                    <div class="stat-card"><div class="number">${s.enviado_hoje}</div><div class="label">Enviados Hoje</div></div>
+                    <div class="stat-card"><div class="number">${s.enviado_esta_hora}</div><div class="label">Enviados Hora</div></div>
+                `;
+            } catch (e) {}
+        }
+
+        async function loadMessages() {
+            try {
+                const status = document.getElementById('msgFilterStatus').value;
+                const params = status ? `?status=${status}&limit=50` : '?limit=50';
+                const msgs = await api('/messages' + params);
+                const tbody = document.getElementById('msgTable');
+                if (msgs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b">Nenhuma mensagem</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = msgs.map(m => {
+                    const statusBadge = {
+                        'enviado': 'badge-baixa', 'aprovado': 'badge-media',
+                        'rascunho': 'badge-media', 'erro_envio': 'badge-alta',
+                        'erro_validacao': 'badge-alta'
+                    }[m.status] || 'badge-media';
+                    return `<tr>
+                        <td>${m.id}</td>
+                        <td>${m.company_name || m.company_id}</td>
+                        <td><span class="badge ${statusBadge}">${m.status}</span></td>
+                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.message_text}">${m.message_text}</td>
+                        <td>${formatDate(m.generated_at)}</td>
+                        <td>${m.sent_at ? formatDate(m.sent_at) : '-'}</td>
+                        <td style="color:#f87171;font-size:0.75rem">${m.last_error || ''}</td>
+                    </tr>`;
+                }).join('');
+            } catch (e) {
+                showToast(e.message, true);
+            }
+        }
     </script>
 </body>
 </html>
