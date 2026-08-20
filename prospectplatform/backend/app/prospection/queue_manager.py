@@ -16,6 +16,27 @@ class QueueManager:
 
     def add_to_queue(self, company_id: int, notes: str | None = None) -> ProspectingQueue:
         """Adiciona empresa à fila de prospecção."""
+        company = self.db.get(Company, company_id)
+
+        if company and self.is_opted_out(phone=company.phone, instagram=company.instagram):
+            existing = self.db.query(ProspectingQueue).filter(
+                ProspectingQueue.company_id == company_id
+            ).first()
+            if existing:
+                existing.status = "BLOQUEADO_OPT_OUT"
+                self.db.commit()
+                self.db.refresh(existing)
+                return existing
+            entry = ProspectingQueue(
+                company_id=company_id,
+                status="BLOQUEADO_OPT_OUT",
+                notes="Opt-out detectado",
+            )
+            self.db.add(entry)
+            self.db.commit()
+            self.db.refresh(entry)
+            return entry
+
         existing = self.db.query(ProspectingQueue).filter(
             ProspectingQueue.company_id == company_id
         ).first()
