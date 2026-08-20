@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -73,3 +74,36 @@ def get_diagnosis(company_id: int, db: Session = Depends(get_db)):
     opportunities = db.query(Opportunity).filter(Opportunity.company_id == company_id).all()
 
     return build_diagnosis(company, audit, opportunities, db)
+
+
+class OutreachMessage(BaseModel):
+    company_id: int
+    company_name: str
+    phone: str | None
+    message: str
+
+
+@router.get("/{company_id}/outreach", response_model=OutreachMessage)
+async def get_outreach_message(company_id: int, db: Session = Depends(get_db)):
+    """Gera mensagem curta de abordagem consultiva via LLM."""
+    company = db.get(Company, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+
+    from app.models.audit import Audit
+    from app.models.opportunity import Opportunity
+    from app.api.v1.endpoints.diagnosis import build_diagnosis
+    from app.llm.sales_agent import generate_outreach_message
+
+    audit = db.query(Audit).filter(Audit.company_id == company_id).order_by(Audit.id.desc()).first()
+    opportunities = db.query(Opportunity).filter(Opportunity.company_id == company_id).all()
+    diagnosis = build_diagnosis(company, audit, opportunities, db)
+
+    message = await generate_outreach_message(company, audit, opportunities, diagnosis)
+
+    return OutreachMessage(
+        company_id=company.id,
+        company_name=company.name,
+        phone=company.phone,
+        message=message,
+    )
