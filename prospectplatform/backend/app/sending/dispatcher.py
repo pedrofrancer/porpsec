@@ -43,8 +43,29 @@ class ContentValidator:
 
     MAX_LENGTH = 1000
 
+    SPECIFICITY_KEYWORDS = [
+        r"site", r"website", r"www\.", r"\.com", r"\.com\.br",
+        r"instagram", r"@[\w.]+",
+        r"google", r"nota", r"avalia[cç][aã]o", r"estrela",
+        r"agendamento", r"marcar", r"hor[aá]rio",
+        r"whatsapp", r"zap",
+        r"lento", r"velocidade", r"carregando", r"demora",
+        r"celular", r"mobile", r"responsivo", r"tela",
+        r"bot[aã]o", r"link", r"contato",
+        r"faltando", r"ausente", r"sem\s", r"n[aã]o\s+tem",
+        r"incompleto", r"perfil",
+        r"foto", r"fotos", r"imagem",
+        r"blog", r"post", r"conte[uú]do",
+        r"HTTPS", r"SSL", r"viewport",
+    ]
+
     @staticmethod
-    def validate(message: str, company_name: str) -> tuple[bool, str | None]:
+    def validate(
+        message: str,
+        company_name: str,
+        audit: "Audit | None" = None,
+        opportunities: list | None = None,
+    ) -> tuple[bool, str | None]:
         if not message or not message.strip():
             return False, "Mensagem vazia"
 
@@ -57,6 +78,23 @@ class ContentValidator:
 
         if company_name.lower() not in message.lower():
             return False, f"Nome da empresa '{company_name}' nao encontrado na mensagem"
+
+        msg_lower = message.lower()
+        has_specificity = any(
+            re.search(kw, msg_lower) for kw in ContentValidator.SPECIFICITY_KEYWORDS
+        )
+        if not has_specificity:
+            return False, "Mensagem generica — nenhum dado especifico da empresa mencionado"
+
+        if opportunities:
+            opp_keywords = []
+            for opp in opportunities[:3]:
+                words = opp.problem.lower().split()
+                opp_keywords.extend(w for w in words if len(w) > 3)
+            if opp_keywords:
+                mentioned_opp = any(kw in msg_lower for kw in opp_keywords)
+                if not mentioned_opp:
+                    return False, "Mensagem nao referencia nenhuma oportunidade identificada"
 
         return True, None
 
@@ -488,7 +526,9 @@ class Dispatcher:
                     company, audit, opportunities, diagnosis
                 )
 
-                valid, error = ContentValidator.validate(message_text, company.name)
+                valid, error = ContentValidator.validate(
+                    message_text, company.name, audit, opportunities
+                )
                 msg_status = "aprovado" if valid else "erro_validacao"
 
                 if valid:
@@ -584,7 +624,7 @@ class Dispatcher:
         diagnosis = build_diagnosis(company, audit, opportunities, self.db)
         message_text = await generate_outreach_message(company, audit, opportunities, diagnosis)
 
-        valid, error = ContentValidator.validate(message_text, company.name)
+        valid, error = ContentValidator.validate(message_text, company.name, audit, opportunities)
         if not valid:
             msg = Message(
                 company_id=company.id,

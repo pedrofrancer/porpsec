@@ -5,74 +5,42 @@ from app.models.opportunity import Opportunity
 from app.schemas.audit import DiagnosisReport
 
 
-SYSTEM_PROMPT = """Voce e uma pessoa que ajudou varios donos de negocio local a melhorar a presenca online. Voce conhece bem o dia-a-dia de quem roda uma barbearia, salao, clinica, restaurante — e fala na mesma linguagem deles.
+SYSTEM_PROMPT = """Voce e uma pessoa que ajuda donos de negocio local a melhorar a presenca online. Voce fala como quem ja trabajou com varios negocios parecidos — direto, sem papel, sem firula.
 
-Voce esta enviando uma mensagem direta no WhatsApp dono(a) de um negocio local.
+MENSAGEM: WhatsApp direto pro dono(a). Maximo 4 frases.
 
-REGRAS ABSOLUTAS (nao quebre nenhuma):
-1. Comece com um elogio ESPECIFICO e genuino sobre algo real que voce viu (nota boa no Google, fotos legais, conteudo do Instagram, localizacao boa, etc). NUNCA diga "adorei sua empresa" ou qualquer coisa generica.
-2. Cite UM so problema real, com prova concreta do que voce viu ou nao viu ("vi que...", "nao achei...", "reparei que...", "pelo que vi..."). NAO mencione lista de problemas.
-3. Explique em UMA frase curta por que isso importa pro negocio dela (sem jargao tecnico).
-4. Termine com uma pergunta aberta e de baixo compromisso ("topa eu te mostrar?", "posso te mandar?", "quer ver como ficaria?"). NUNCA ofereca servico diretamente, NUNCA mande link, NUNCA diga "vamos agendar uma call".
-5. Tom: pessoa real falando com pessoa real. Dono de negocio falando com dono de negocio. Nao "consultor", Nao "empresa", Nao "equipe". Nao assine com nome de empresa no final.
-6. Maximo 4-5 frases no total. Mensagem curta.
-7. NAO use emojis. NAO use formatacao Markdown. NAO use aspas no inicio/fim da mensagem.
-8. NAO invente dados que nao foram fornecidos. Se nao tem nota no Google, nao mencione nota. Se nao tem Instagram, nao mencione Instagram.
+REGRAS (nao quebre nenhuma):
 
-TIPOS DE ABORDAGEM (escolha o mais relevante e adapte):
+1. INCLUA O NOME DA EMPRESA NA MENSAGEM. SEMPRE. Se "Barbearia do Marco", escreva "Barbearia do Marco" na mensagem. Isso e obrigatorio pra validacao passar.
 
-SEM SITE:
-- Elogio: nota no Google, fotos, reputacao
-- Problema: "nao achei um site de voces — so Instagram"
-- Por que importa: gente que busca "categoria perto de mim" nao encontra
-- Pergunta: "topa eu te mostrar como ficaria?"
+2. CITE UM DADO REAL da auditoria — algo que voce VISUOU no perfil/ site da empresa. Sem elogio generico. Exemplos de dados citaveis:
+   - "seu Google mostra nota X com Y avaliacoes"
+   - "vi que nao tem site, so o Instagram"
+   - "o site nao abre no celular" / "demora pra carregar"
+   - "nao achei horario de funcionamento no Google"
+   - "vi que o Instagram ta sem postar faz tempo"
+   - "nao tem como agendar pelo site"
+   - "o perfil do Google ta incompleto"
+   Se voce NAO tiver nenhum dado concreto pra citar, responda EXATAMENTE: INSUFFICIENT_DATA
 
-SEM AGENDAMENTO ONLINE (barbearia/salao/clinica):
-- Elogio: fotos, nota, reputacao
-- Problema: "reparei que os agendamentos sao so por telefone/WhatsApp"
-- Por que importa: cliente prefere marcar direto pelo celular
-- Pergunta: "consigo te mostrar rapidinho como isso funcionaria?"
+2. LIGUE a dor a uma OPORTUNIDADE REAL que foi identificada. Nao invente problema novo. A mensagem tem que ser rastreavel ate o dado da auditoria.
 
-SITE LENTO OU DESATUALIZADO:
-- Elogio: tem site (raro, bom sinal)
-- Problema: "dei uma olhada e vi que faz tempo que nao e atualizado" ou "ta bem lento"
-- Por que importa: pode estar deixando passar cliente
-- Pergunta: "posso te mandar 2-3 coisas simples que dariam pra melhorar?"
+3. VARE A ESTRUTURA. Nao abra sempre com "Oi, tudo bem?" ou "Vi o [nome] no Google". Varie:
+   - Pode comecar com a constatacao direta ("Seu Google ta sem foto...")
+   - Pode comecar com o dado positivo seguido do problema
+   - Pode comecar com a pergunta
+   - Nunca a mesma construcao duas vezes seguidas
 
-SEM WHATSAPP VISIVEL / SEM CTA:
-- Elogio: nota boa, boa reputacao
-- Problema: "nao achei um jeito rapido de falar com voces pelo perfil"
-- Por que importa: cliente novo quer contato imediato
-- Pergunta: "quer que eu te mostre como fica?"
+4. TOM: 1 pessoa real conversando com outra. Nao "consultor". Nao "equipe". Nao "empresa". Nao assine com nome. Nao use emojis. Nao use Markdown. Nao use "Olá! Tudo bem?" de abertura.
 
-INSTAGRAM INATIVO:
-- Elogio: perfil que existe, conteudo anterior
-- Problema: "faz um tempo que nao posta nada"
-- Por que importa: gente que procura pode achar o perfil "parado"
-- Pergunta: "posso te mandar umas ideias simples?"
+5. SEJA ESPECIFICA mas sem jargao tecnico. Em vez de "SEO otimizado", diga "quem pesquisa [categoria] no Google nao te encontra". Em vez de "responsividade mobile", diga "o site nao abre direito no celular".
 
-GOOGLE BUSINESS INCOMPLETO:
-- Elogio: tem perfil (raro completar)
-- Problema: "ta faltando fotos/horario/categoria"
-- Por que importa: cliente pesquisa e escolhe pelo Google
-- Pergunta: "quer que eu te mostre o que preencher?"
-
-CONTEXTO REGIONAL (use so se tiver >=15 empresas auditadas):
-- Inclua uma comparacao sutil: "X% das [categoria] da regiao ainda nao tem [problema]"
-- So mencione se natural, nao force no meio da mensagem
-
-DADOS DA EMPRESA (use os que existirem):
-- Nome da empresa ( SEMPRE mencione )
-- Categoria
-- Cidade
-- Nota Google (se tiver)
-- Instagram (se tiver)
-- Website (se tiver)
+DADOS DA EMPRESA (use como base, nao invente nada que nao esteja aqui):
 """
 
 
 def _build_context(company: Company, audit: Audit | None, opportunities: list[Opportunity], diagnosis: DiagnosisReport | None) -> str:
-    """Monta o contexto que sera enviado ao LLM."""
+    """Monta o contexto rico de dados concretos para o LLM."""
     lines = [
         f"Empresa: {company.name}",
         f"Categoria: {company.category.name if company.category else 'N/A'}",
@@ -85,44 +53,78 @@ def _build_context(company: Company, audit: Audit | None, opportunities: list[Op
         lines.append(f"Website: {company.website}")
     if company.instagram:
         lines.append(f"Instagram: {company.instagram}")
+    if company.facebook:
+        lines.append(f"Facebook: {company.facebook}")
 
     if company.google_rating:
-        lines.append(f"Nota Google: {company.google_rating}")
-    if company.google_review_count:
-        lines.append(f"Avaliacoes Google: {company.google_review_count}")
+        lines.append(f"Nota Google: {company.google_rating} ({company.google_review_count or '?'} avaliacoes)")
 
     if audit:
-        lines.append(f"\nDigital Score: {audit.digital_score}/100")
+        lines.append(f"\n--- DADOS DA AUDITORIA (fonte: verificacao automatica) ---")
+        lines.append(f"Score digital: {audit.digital_score}/100")
+
+        if company.website:
+            if audit.has_https is not None:
+                lines.append(f"HTTPS: {'Sim' if audit.has_https else 'NAO — site sem certificado SSL'}")
+            if audit.response_time_ms:
+                status = "OK" if audit.response_time_ms < 3000 else f"LENTOS ({audit.response_time_ms}ms)"
+                lines.append(f"Tempo de carregamento: {status}")
+            if audit.has_viewport is not None:
+                lines.append(f"Responsivo (mobile): {'Sim' if audit.has_viewport else 'NAO — nao abre direito no celular'}")
+            if audit.has_meta_title is not None:
+                title_ok = audit.has_meta_title and (audit.meta_title_length or 0) > 10
+                lines.append(f"Meta title: {'OK' if title_ok else 'Ausente ou muito curto'}")
+            if audit.has_meta_description is not None:
+                desc_ok = audit.has_meta_description and (audit.meta_desc_length or 0) > 50
+                lines.append(f"Meta description: {'OK' if desc_ok else 'Ausente ou muito curta'}")
+            if audit.has_blog_content is not None:
+                if audit.has_blog_content and audit.blog_freshness_days:
+                    lines.append(f"Blog: desatualizado ({audit.blog_freshness_days} dias sem post)")
+                elif audit.has_blog_content:
+                    lines.append(f"Blog: com conteudo")
+                else:
+                    lines.append(f"Blog: sem blog")
+        else:
+            lines.append(f"Empresa NAO tem website")
+
+        if company.instagram:
+            if audit.instagram_public is not None:
+                lines.append(f"Instagram publico: {'Sim' if audit.instagram_public else 'NAO — perfil privado'}")
+            if audit.instagram_active is not None:
+                lines.append(f"Instagram ativo (30d): {'Sim' if audit.instagram_active else 'NAO — sem posts recentes'}")
+
+        if company.facebook:
+            if audit.facebook_active is not None:
+                lines.append(f"Facebook ativo: {'Sim' if audit.facebook_active else 'NAO'}")
+
+        lines.append(f"Google Business completo: {'Sim' if audit.google_business_complete else 'NAO — perfil incompleto'}")
+
         if audit.has_whatsapp is not None:
-            lines.append(f"WhatsApp visivel: {'Sim' if audit.has_whatsapp else 'Nao'}")
+            lines.append(f"WhatsApp visivel no site/perfil: {'Sim' if audit.has_whatsapp else 'NAO'}")
         if audit.has_scheduling is not None:
-            lines.append(f"Agendamento online: {'Sim' if audit.has_scheduling else 'Nao'}")
+            lines.append(f"Agendamento online: {'Sim' if audit.has_scheduling else 'NAO'}")
         if audit.has_cta is not None:
-            lines.append(f"CTA de contato: {'Sim' if audit.has_cta else 'Nao'}")
-        if audit.instagram_active is not None:
-            lines.append(f"Instagram ativo (30d): {'Sim' if audit.instagram_active else 'Nao'}")
-        if audit.google_business_complete is not None:
-            lines.append(f"Google Business completo: {'Sim' if audit.google_business_complete else 'Nao'}")
-        if audit.response_time_ms:
-            lines.append(f"Tempo resposta site: {audit.response_time_ms}ms")
-        if audit.has_viewport is not None:
-            lines.append(f"Site responsivo: {'Sim' if audit.has_viewport else 'Nao'}")
+            lines.append(f"Call-to-action visivel: {'Sim' if audit.has_cta else 'NAO'}")
+        if audit.has_form is not None:
+            lines.append(f"Formulario de contato: {'Sim' if audit.has_form else 'NAO'}")
+        if audit.whatsapp_catalog_link is not None:
+            lines.append(f"Catalogo WhatsApp: {'Sim' if audit.whatsapp_catalog_link else 'NAO'}")
 
     if opportunities:
-        lines.append("\nMaior oportunidade:")
-        best = opportunities[0]
-        lines.append(f"  Problema: {best.problem}")
-        lines.append(f"  Solucao sugerida: {best.suggested_solution}")
-        lines.append(f"  Prioridade: {best.priority}")
-        if best.evidence:
-            lines.append(f"  Evidencia: {best.evidence}")
+        lines.append(f"\n--- OPORTUNIDADES IDENTIFICADAS ---")
+        for i, opp in enumerate(opportunities[:3], 1):
+            lines.append(f"#{i} [{opp.priority}] {opp.problem}")
+            if opp.evidence:
+                lines.append(f"   Evidencia: {opp.evidence}")
+            lines.append(f"   Solucao: {opp.suggested_solution}")
 
     if diagnosis and diagnosis.regional_comparison.available:
         rc = diagnosis.regional_comparison.data
-        lines.append(f"\nContexto regional ({rc['total_audited']} empresas do mesmo segmento na cidade):")
-        lines.append(f"  - {rc['pct_without_site']}% sem site")
-        lines.append(f"  - {rc['pct_without_scheduling']}% sem agendamento")
-        lines.append(f"  - Nota media: {rc['avg_score']}")
+        lines.append(f"\n--- CONTEXTO REGIONAL ---")
+        lines.append(f"Amostra: {rc['total_audited']} empresas do mesmo segmento na cidade")
+        lines.append(f"Sem site: {rc['pct_without_site']}%")
+        lines.append(f"Sem agendamento: {rc['pct_without_scheduling']}%")
+        lines.append(f"Nota media: {rc['avg_score']}")
 
     return "\n".join(lines)
 

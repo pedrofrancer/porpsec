@@ -886,3 +886,65 @@ def test_send_window_utc_20_is_brt_17_inside():
         mock_dt.now.return_value = brt_17h
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
         assert dispatcher._is_within_send_window()
+
+
+# --- ContentValidator specificity tests ---
+
+def test_validate_rejects_generic_no_specificity():
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste e um otimo estabelecimento da regiao, recomendo.",
+        "Barbearia Teste",
+    )
+    assert not ok
+    assert "generica" in err.lower() or "especifico" in err.lower()
+
+
+def test_validate_accepts_message_with_site_mention():
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste, vi que voces nao tem site, so o Instagram. Isso faz falta pra quem pesquisa no Google.",
+        "Barbearia Teste",
+    )
+    assert ok
+
+
+def test_validate_accepts_message_with_instagram_mention():
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste, notei que o Instagram ta sem postar faz tempo. Gente que procura pode achar o perfil parado.",
+        "Barbearia Teste",
+    )
+    assert ok
+
+
+def test_validate_accepts_message_with_nota_google():
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste, seu Google ta com nota boa mas o perfil ta incompleto, falta horario.",
+        "Barbearia Teste",
+    )
+    assert ok
+
+
+def test_validate_rejects_just_company_name():
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste e um otimo negocio da regiao.",
+        "Barbearia Teste",
+    )
+    assert not ok
+    assert "generica" in err.lower() or "especifico" in err.lower()
+
+
+def test_validate_rejects_when_no_opp_mentioned():
+    from app.models.opportunity import Opportunity
+
+    opp = Opportunity(
+        company_id=1,
+        problem="sem agendamento online para clientes",
+        suggested_solution="Sistema de Agendamento",
+        priority="alta",
+    )
+    ok, err = ContentValidator.validate(
+        "Barbearia Teste, vi que voces nao tem site. Topa eu te mostrar como ficaria?",
+        "Barbearia Teste",
+        opportunities=[opp],
+    )
+    assert not ok
+    assert "oportunidade" in err.lower()
