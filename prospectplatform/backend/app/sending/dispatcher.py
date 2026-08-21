@@ -7,6 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import yaml
 from sqlalchemy import func
@@ -23,6 +24,7 @@ logger = logging.getLogger("dispatcher")
 
 AUTO_ENQUEUE_BATCH_SIZE = 5
 COLLECTION_COOLDOWN_DAYS = 3
+BRT = ZoneInfo("America/Sao_Paulo")
 COLLECTION_TIMEOUT_SECONDS = 120
 _TARGETS_FILE = Path(__file__).parent.parent.parent.parent / "config" / "collection_targets.yaml"
 
@@ -272,27 +274,30 @@ class Dispatcher:
                 f.write(f"[{datetime.now(timezone.utc).isoformat()}] CIRCUIT BREAKER: 5 erros consecutivos\n")
 
     def _is_within_send_window(self) -> bool:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(BRT)
         hour = now.hour
         return settings.SEND_WINDOW_START <= hour < settings.SEND_WINDOW_END
 
     def _is_weekday(self) -> bool:
-        return datetime.now(timezone.utc).weekday() < 5
+        return datetime.now(BRT).weekday() < 5
 
     def _can_send_hourly(self) -> bool:
-        now = datetime.now(timezone.utc)
-        hour_start = now.replace(minute=0, second=0, microsecond=0)
+        now_brt = datetime.now(BRT)
+        hour_start_brt = now_brt.replace(minute=0, second=0, microsecond=0)
+        hour_start_utc = hour_start_brt.astimezone(timezone.utc)
         count = self.db.query(func.count(Message.id)).filter(
-            Message.sent_at >= hour_start,
+            Message.sent_at >= hour_start_utc,
             Message.status == "enviado",
         ).scalar()
         return count < settings.HOURLY_SEND_LIMIT
 
     def _can_send_daily(self) -> bool:
         max_today = WarmupManager.get_max_today()
-        today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        now_brt = datetime.now(BRT)
+        day_start_brt = now_brt.replace(hour=0, minute=0, second=0, microsecond=0)
+        day_start_utc = day_start_brt.astimezone(timezone.utc)
         sent_today = self.db.query(func.count(Message.id)).filter(
-            Message.sent_at >= today_start,
+            Message.sent_at >= day_start_utc,
             Message.status == "enviado",
         ).scalar()
         return sent_today < max_today
@@ -310,7 +315,7 @@ class Dispatcher:
         cutoff = datetime.now(timezone.utc) - timedelta(days=30)
         return self.db.query(Message).filter(
             Message.company_id == company_id,
-            Message.status.in_(["rascunho", "aprovado", "enviado"]),
+            Message.status == "enviado",
             Message.generated_at >= cutoff,
         ).first() is not None
 
@@ -332,7 +337,7 @@ class Dispatcher:
             row[0] for row in self.db.query(Message.company_id)
             .filter(
                 Message.generated_at >= cutoff,
-                Message.status.in_(["rascunho", "aprovado", "enviado"]),
+                Message.status == "enviado",
             )
             .distinct()
             .all()

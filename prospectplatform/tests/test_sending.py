@@ -755,3 +755,134 @@ async def test_auto_enqueue_base_exhausted(db, company):
 
     pending = dispatcher._get_pending_companies()
     assert len(pending) == 0
+
+
+# --- Bug 1 fix: aprovado MUST NOT block process_company ---
+
+def test_aprovado_does_not_block_has_active_message(db, company):
+    msg = Message(
+        company_id=company.id,
+        opportunity_ids="[]",
+        message_text="teste aprovado",
+        status="aprovado",
+        generated_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    assert not dispatcher._has_active_message(company.id)
+
+
+def test_enviado_blocks_has_active_message(db, company):
+    msg = Message(
+        company_id=company.id,
+        opportunity_ids="[]",
+        message_text="teste enviado",
+        status="enviado",
+        generated_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    assert dispatcher._has_active_message(company.id)
+
+
+def test_rascunho_does_not_block_has_active_message(db, company):
+    msg = Message(
+        company_id=company.id,
+        opportunity_ids="[]",
+        message_text="teste rascunho",
+        status="rascunho",
+        generated_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    assert not dispatcher._has_active_message(company.id)
+
+
+def test_aprovado_does_not_exclude_from_eligible(db, company):
+    msg = Message(
+        company_id=company.id,
+        opportunity_ids="[]",
+        message_text="teste aprovado eligible",
+        status="aprovado",
+        generated_at=datetime.now(timezone.utc),
+    )
+    db.add(msg)
+    db.commit()
+
+    dispatcher = Dispatcher(db)
+    eligible = dispatcher._get_eligible_companies()
+    assert any(co.id == company.id for co in eligible)
+
+
+# --- Bug 3 fix: send window uses BRT ---
+
+from app.sending.dispatcher import BRT
+from unittest.mock import patch
+
+
+def test_send_window_uses_brt_not_utc():
+    from app.sending.dispatcher import Dispatcher
+    from app.core.config import settings
+
+    dispatcher = Dispatcher.__new__(Dispatcher)
+
+    brt_noon = datetime(2026, 8, 21, 12, 0, 0, tzinfo=BRT)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        mock_dt.now.return_value = brt_noon
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        assert dispatcher._is_within_send_window()
+
+
+def test_send_window_rejects_outside_brt_hours():
+    from app.sending.dispatcher import Dispatcher
+
+    dispatcher = Dispatcher.__new__(Dispatcher)
+
+    brt_20h = datetime(2026, 8, 21, 20, 0, 0, tzinfo=BRT)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        mock_dt.now.return_value = brt_20h
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        assert not dispatcher._is_within_send_window()
+
+
+def test_send_window_9h_brt_is_inside():
+    from app.sending.dispatcher import Dispatcher
+
+    dispatcher = Dispatcher.__new__(Dispatcher)
+
+    brt_9h = datetime(2026, 8, 21, 9, 0, 0, tzinfo=BRT)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        mock_dt.now.return_value = brt_9h
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        assert dispatcher._is_within_send_window()
+
+
+def test_send_window_18h59_brt_is_inside():
+    from app.sending.dispatcher import Dispatcher
+
+    dispatcher = Dispatcher.__new__(Dispatcher)
+
+    brt_1859 = datetime(2026, 8, 21, 18, 59, 0, tzinfo=BRT)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        mock_dt.now.return_value = brt_1859
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        assert dispatcher._is_within_send_window()
+
+
+def test_send_window_utc_20_is_brt_17_inside():
+    from app.sending.dispatcher import Dispatcher
+
+    dispatcher = Dispatcher.__new__(Dispatcher)
+
+    brt_17h = datetime(2026, 8, 21, 17, 0, 0, tzinfo=BRT)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        mock_dt.now.return_value = brt_17h
+        mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)
+        assert dispatcher._is_within_send_window()
