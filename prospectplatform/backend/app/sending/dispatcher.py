@@ -19,12 +19,18 @@ from app.models.audit import Audit
 from app.models.opportunity import Opportunity
 from app.models.message import Message
 from app.models.prospection import ProspectingQueue, OptOut, ActionLog
+from app.core.countries import CountrySettings, country_code_for_company, get_country
+from app.prospecting.channel_router import resolve_channel
 
 logger = logging.getLogger("dispatcher")
 
 AUTO_ENQUEUE_BATCH_SIZE = 5
 COLLECTION_COOLDOWN_DAYS = 3
 BRT = ZoneInfo("America/Sao_Paulo")
+# Fuso usado para contar "hoje"/"esta hora" nos limites de cada canal.
+CHANNEL_TZ = {"whatsapp": BRT, "email": ZoneInfo("Europe/Brussels")}
+# Status de fila que tiram a empresa do auto-enfileiramento.
+_QUEUE_BLOCKING = ["PENDENTE", "ERRO", "NAO_ELEGIVEL", "BLOQUEADO_OPT_OUT"]
 COLLECTION_TIMEOUT_SECONDS = 120
 _TARGETS_FILE = Path(__file__).parent.parent.parent.parent / "config" / "collection_targets.yaml"
 
@@ -100,53 +106,66 @@ class ContentValidator:
 
 
 class WarmupManager:
-    """Gerencia curva de aquecimento do numero."""
+    """Curva de aquecimento por canal (numero de WhatsApp e caixa de e-mail aquecem separado)."""
 
     WARMUP_FILE = Path(__file__).parent.parent.parent / "warmup_state.json"
 
     @classmethod
-    def _load_state(cls) -> dict:
-        if cls.WARMUP_FILE.exists():
-            return json.loads(cls.WARMUP_FILE.read_text(encoding="utf-8"))
+    def _file(cls, channel: str = "whatsapp") -> Path:
+        if channel == "whatsapp":
+            return cls.WARMUP_FILE
+        return cls.WARMUP_FILE.with_name(f"{cls.WARMUP_FILE.stem}_{channel}.json")
+
+    @classmethod
+    def _load_state(cls, channel: str = "whatsapp") -> dict:
+        path = cls._file(channel)
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
         return {"first_use_date": None, "total_sent": 0}
 
     @classmethod
-    def _save_state(cls, state: dict):
-        cls.WARMUP_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+    def _save_state(cls, state: dict, channel: str = "whatsapp"):
+        cls._file(channel).write_text(json.dumps(state, indent=2), encoding="utf-8")
+
+    @staticmethod
+    def _curve_and_limit(channel: str) -> tuple[list[int], int]:
+        if channel == "email":
+            return settings.email_warmup_curve_list, settings.EMAIL_DAILY_LIMIT
+        return settings.warmup_curve_list, settings.DAILY_SEND_LIMIT
 
     @classmethod
-    def get_first_use_date(cls) -> datetime | None:
-        state = cls._load_state()
+    def get_first_use_date(cls, channel: str = "whatsapp") -> datetime | None:
+        state = cls._load_state(channel)
         if state.get("first_use_date"):
             return datetime.fromisoformat(state["first_use_date"])
         return None
 
     @classmethod
-    def register_first_use(cls):
-        state = cls._load_state()
+    def register_first_use(cls, channel: str = "whatsapp"):
+        state = cls._load_state(channel)
         if not state.get("first_use_date"):
             state["first_use_date"] = datetime.now(timezone.utc).isoformat()
-            cls._save_state(state)
+            cls._save_state(state, channel)
 
     @classmethod
-    def get_max_today(cls) -> int:
-        state = cls._load_state()
-        curve = settings.warmup_curve_list
+    def get_max_today(cls, channel: str = "whatsapp") -> int:
+        state = cls._load_state(channel)
+        curve, limit = cls._curve_and_limit(channel)
 
         if not state.get("first_use_date"):
-            return curve[0] if curve else settings.DAILY_SEND_LIMIT
+            return min(curve[0], limit) if curve else limit
 
         first_use = datetime.fromisoformat(state["first_use_date"])
         days_since = (datetime.now(timezone.utc) - first_use).days
 
         if days_since >= len(curve):
-            return settings.DAILY_SEND_LIMIT
+            return limit
 
-        return curve[days_since]
+        return min(curve[days_since], limit)
 
     @classmethod
-    def get_day_number(cls) -> int:
-        state = cls._load_state()
+    def get_day_number(cls, channel: str = "whatsapp") -> int:
+        state = cls._load_state(channel)
         if not state.get("first_use_date"):
             return 1
         first_use = datetime.fromisoformat(state["first_use_date"])
@@ -254,6 +273,8 @@ class Dispatcher:
             "consecutive_errors": self._consecutive_errors,
             "warmup_day": WarmupManager.get_day_number(),
             "warmup_max_today": WarmupManager.get_max_today(),
+            "email_warmup_day": WarmupManager.get_day_number("email"),
+            "email_warmup_max_today": WarmupManager.get_max_today("email"),
             "started_at": self._started_at.isoformat() if self._started_at else None,
             "last_cycle_at": self._last_cycle_at.isoformat() if self._last_cycle_at else None,
             "next_cycle_at": self._next_cycle_at.isoformat() if self._next_cycle_at else None,
@@ -311,34 +332,34 @@ class Dispatcher:
             with open(log_path, "a", encoding="utf-8") as f:
                 f.write(f"[{datetime.now(timezone.utc).isoformat()}] CIRCUIT BREAKER: 5 erros consecutivos\n")
 
-    def _is_within_send_window(self) -> bool:
-        now = datetime.now(BRT)
-        hour = now.hour
-        return settings.SEND_WINDOW_START <= hour < settings.SEND_WINDOW_END
+    def _is_within_send_window(self, country: CountrySettings | None = None) -> bool:
+        if country is None:
+            now = datetime.now(BRT)
+            start, end = settings.SEND_WINDOW_START, settings.SEND_WINDOW_END
+        else:
+            now = datetime.now(country.tz)
+            start, end = country.send_window
+        return start <= now.hour < end
 
-    def _is_weekday(self) -> bool:
-        return datetime.now(BRT).weekday() < 5
+    def _is_weekday(self, country: CountrySettings | None = None) -> bool:
+        return datetime.now(country.tz if country else BRT).weekday() < 5
 
-    def _can_send_hourly(self) -> bool:
-        now_brt = datetime.now(BRT)
-        hour_start_brt = now_brt.replace(minute=0, second=0, microsecond=0)
-        hour_start_utc = hour_start_brt.astimezone(timezone.utc)
-        count = self.db.query(func.count(Message.id)).filter(
-            Message.sent_at >= hour_start_utc,
+    def _sent_since(self, since_local: datetime, channel: str) -> int:
+        return self.db.query(func.count(Message.id)).filter(
+            Message.sent_at >= since_local.astimezone(timezone.utc),
             Message.status == "enviado",
+            Message.channel == channel,
         ).scalar()
-        return count < settings.HOURLY_SEND_LIMIT
 
-    def _can_send_daily(self) -> bool:
-        max_today = WarmupManager.get_max_today()
-        now_brt = datetime.now(BRT)
-        day_start_brt = now_brt.replace(hour=0, minute=0, second=0, microsecond=0)
-        day_start_utc = day_start_brt.astimezone(timezone.utc)
-        sent_today = self.db.query(func.count(Message.id)).filter(
-            Message.sent_at >= day_start_utc,
-            Message.status == "enviado",
-        ).scalar()
-        return sent_today < max_today
+    def _can_send_hourly(self, channel: str = "whatsapp") -> bool:
+        now = datetime.now(CHANNEL_TZ.get(channel, BRT))
+        limit = settings.EMAIL_HOURLY_LIMIT if channel == "email" else settings.HOURLY_SEND_LIMIT
+        return self._sent_since(now.replace(minute=0, second=0, microsecond=0), channel) < limit
+
+    def _can_send_daily(self, channel: str = "whatsapp") -> bool:
+        now = datetime.now(CHANNEL_TZ.get(channel, BRT))
+        day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        return self._sent_since(day_start, channel) < WarmupManager.get_max_today(channel)
 
     def _check_opt_out(self, company: Company) -> bool:
         if company.phone:
@@ -346,6 +367,9 @@ class Dispatcher:
                 return True
         if company.instagram:
             if self.db.query(OptOut).filter(OptOut.contact_identifier == company.instagram).first():
+                return True
+        if company.email:
+            if self.db.query(OptOut).filter(OptOut.contact_identifier == company.email.lower()).first():
                 return True
         return False
 
@@ -367,7 +391,7 @@ class Dispatcher:
 
         active_queue_company_ids = [
             row[0] for row in self.db.query(ProspectingQueue.company_id)
-            .filter(ProspectingQueue.status.in_(["PENDENTE", "ERRO"]))
+            .filter(ProspectingQueue.status.in_(_QUEUE_BLOCKING))
             .all()
         ]
 
@@ -383,9 +407,11 @@ class Dispatcher:
 
         exclude_ids = set(active_queue_company_ids + recent_msg_company_ids)
 
+        # Telefone (WhatsApp), e-mail, ou site onde a auditoria pode achar o e-mail.
         companies = self.db.query(Company).filter(
-            Company.phone.isnot(None),
-            Company.phone != "",
+            ((Company.phone.isnot(None)) & (Company.phone != ""))
+            | ((Company.email.isnot(None)) & (Company.email != ""))
+            | ((Company.website.isnot(None)) & (Company.website != ""))
         ).all()
 
         eligible = []
@@ -395,6 +421,8 @@ class Dispatcher:
             if c.phone in opted_out_phones:
                 continue
             if c.instagram and c.instagram in opted_out_phones:
+                continue
+            if c.email and c.email.lower() in opted_out_phones:
                 continue
             eligible.append(c)
 
