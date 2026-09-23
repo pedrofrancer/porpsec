@@ -1,7 +1,28 @@
 # STATUS — ProspectPlatform
 
-> Atualizado: 2026-08-21
-> Ultimo commit: db981ab (fix 3 bugs QA + prompt LLM + ContentValidator)
+> Atualizado: 2026-09-22 (expansao Europa, branch feat/eu-email-pipeline)
+
+## Europa (PT, BE, FR, NL) — e-mail + previa de site
+
+Implementado e coberto por testes (160 passando):
+- [x] Configuracao por pais (idioma, fuso, janela, base legal); Espanha com envio desligado
+- [x] Coleta no idioma local e extracao de e-mail, forma juridica, logo e cores na auditoria
+- [x] Politica B2B: so caixa do dominio da empresa; NL so com B.V./N.V.
+- [x] Outreach por Gmail (SMTP) com rodape legal e aquecimento proprio da caixa
+- [x] Leitura de respostas por IMAP: resposta, STOP (opt-out) e bounce
+- [x] Previa de site com a identidade da empresa, publicada no Cloudflare Pages, resposta no mesmo thread
+- [x] Aprovacao no painel (aba Respostas) e envio automatico opcional
+- [x] Migracao automatica do banco no startup
+
+Depende de voce:
+- [ ] Preencher `backend/.env` (Gmail + senha de app, remetente, Groq, Cloudflare, Pexels opcional)
+- [ ] Rodar `scripts/teste_ponta_a_ponta.py` para um e-mail seu e responder
+- [ ] Validacao juridica por pais antes de escalar o volume
+
+Nao testado contra servico real (so com dublês nos testes): SMTP/IMAP do Gmail, deploy do wrangler,
+API do Pexels e Groq. O primeiro teste ponta a ponta e o que prova esses quatro.
+
+## Brasil (WhatsApp) — estado anterior
 
 ---
 

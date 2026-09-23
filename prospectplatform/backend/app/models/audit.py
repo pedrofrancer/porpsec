@@ -40,6 +40,17 @@ class Audit(Base):
     whatsapp_catalog_link: Mapped[bool | None] = mapped_column(Boolean)
     whatsapp_responds_badge: Mapped[bool | None] = mapped_column(Boolean)
 
+    # CONTATO / JURIDICO (extraidos do site)
+    site_lang: Mapped[str | None] = mapped_column(String(20))
+    emails_found: Mapped[str | None] = mapped_column(Text)  # JSON list
+    legal_entity_signal: Mapped[str | None] = mapped_column(String(50))
+
+    # IDENTIDADE VISUAL (usada pelo BrandKitExtractor na hora da previa)
+    logo_url: Mapped[str | None] = mapped_column(String(1000))
+    dominant_colors: Mapped[str | None] = mapped_column(Text)  # JSON list de hex
+    og_image_url: Mapped[str | None] = mapped_column(String(1000))
+    about_snippet: Mapped[str | None] = mapped_column(Text)
+
     # Dados brutos extras
     raw_data: Mapped[str | None] = mapped_column(Text)
 

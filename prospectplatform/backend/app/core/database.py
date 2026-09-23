@@ -2,7 +2,6 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
-from app.models.base import Base
 
 engine = create_engine(
     settings.DATABASE_URL,
@@ -31,9 +30,6 @@ def get_db():
 
 
 def create_tables():
-    from app.models import (  # noqa: F401 — force all models to register
-        Company, Audit, Opportunity, OpportunityRule,
-        Message, ProspectingQueue, OptOut, ActionLog,
-        Category, Subcategory, Country, Region, State, City, Neighborhood,
-    )
-    Base.metadata.create_all(bind=engine)
+    """Cria/migra o schema e registra a revisao do alembic (ver app.core.migrations)."""
+    from app.core.migrations import ensure_schema
+    ensure_schema()

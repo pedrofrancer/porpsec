@@ -1,0 +1,268 @@
+# Textos da previa de site. Nada aqui afirma fato sobre a empresa (anos de casa, premios,
+# depoimentos): so descreve a categoria. Fatos vem do BrandKit (nome, cidade, nota Google, texto
+# "sobre" do proprio site).
+#
+# mood escolhe o visual: bold | soft | warm | clean
+
+ui:
+  fr:
+    banner: "Aperçu réalisé par {brand} pour {name}. Ce n'est pas encore un site en ligne."
+    photos_note: "Photos d'illustration ({credit}). Elles seront remplacées par les vôtres."
+    services: "Prestations"
+    about: "À propos"
+    contact: "Contact"
+    find_us: "Nous trouver"
+    call: "Appeler"
+    write: "Écrire"
+    rating: "{rating} sur Google · {count} avis"
+    menu_home: "Accueil"
+  nl:
+    banner: "Voorbeeld gemaakt door {brand} voor {name}. Dit is nog geen live website."
+    photos_note: "Illustratieve foto's ({credit}). Deze worden vervangen door uw eigen foto's."
+    services: "Diensten"
+    about: "Over ons"
+    contact: "Contact"
+    find_us: "Route"
+    call: "Bellen"
+    write: "Mailen"
+    rating: "{rating} op Google · {count} reviews"
+    menu_home: "Home"
+  pt:
+    banner: "Pré-visualização feita por {brand} para {name}. Ainda não é um site publicado."
+    photos_note: "Fotografias ilustrativas ({credit}). Serão substituídas pelas vossas."
+    services: "Serviços"
+    about: "Sobre nós"
+    contact: "Contacto"
+    find_us: "Onde estamos"
+    call: "Ligar"
+    write: "Escrever"
+    rating: "{rating} no Google · {count} avaliações"
+    menu_home: "Início"
+  en:
+    banner: "Preview made by {brand} for {name}. This is not a live website yet."
+    photos_note: "Illustrative photos ({credit}). They will be replaced by your own."
+    services: "Services"
+    about: "About"
+    contact: "Contact"
+    find_us: "Find us"
+    call: "Call"
+    write: "Email"
+    rating: "{rating} on Google · {count} reviews"
+    menu_home: "Home"
+
+categories:
+  barbearia:
+    mood: bold
+    photo_query: barber shop
+    fr:
+      tagline: "Coupe, barbe et rasage à {city}"
+      cta: "Réserver un créneau"
+      about: "{name} est un barbier à {city}. Réservez votre créneau en ligne, sans appeler."
+      services: [["Coupe homme", "Aux ciseaux ou à la tondeuse"], ["Taille de barbe", "Contours nets et entretien"], ["Rasage", "À l'ancienne, serviette chaude"], ["Coupe enfant", "Pour les plus jeunes"]]
+    nl:
+      tagline: "Knippen, baard en scheren in {city}"
+      cta: "Afspraak maken"
+      about: "{name} is een barbier in {city}. Plan uw afspraak online, zonder te bellen."
+      services: [["Herenknipbeurt", "Met schaar of tondeuse"], ["Baard trimmen", "Strakke lijnen en onderhoud"], ["Scheren", "Klassiek, met warme handdoek"], ["Kinderknipbeurt", "Voor de jongsten"]]
+    pt:
+      tagline: "Corte, barba e navalha em {city}"
+      cta: "Marcar horário"
+      about: "A {name} é uma barbearia em {city}. Marque o seu horário online, sem telefonar."
+      services: [["Corte masculino", "À tesoura ou à máquina"], ["Barba", "Contornos definidos e manutenção"], ["Navalha", "Barbear clássico com toalha quente"], ["Corte criança", "Para os mais novos"]]
+    en:
+      tagline: "Cuts, beards and shaves in {city}"
+      cta: "Book a slot"
+      about: "{name} is a barber in {city}. Book your slot online, no phone call needed."
+      services: [["Haircut", "Scissors or clippers"], ["Beard trim", "Sharp lines and upkeep"], ["Shave", "Classic hot-towel shave"], ["Kids cut", "For the little ones"]]
+
+  salao-de-beleza:
+    mood: soft
+    photo_query: hair salon interior
+    fr:
+      tagline: "Salon de coiffure à {city}"
+      cta: "Prendre rendez-vous"
+      about: "{name} vous accueille à {city} pour la coupe, la couleur et le soin. Prenez rendez-vous en ligne."
+      services: [["Coupe et brushing", "Femme, homme, enfant"], ["Couleur", "Coloration, mèches, balayage"], ["Soins", "Soin profond et réparation"], ["Coiffure événement", "Mariage et occasions"]]
+    nl:
+      tagline: "Kapsalon in {city}"
+      cta: "Afspraak maken"
+      about: "{name} ontvangt u in {city} voor knippen, kleuren en verzorging. Maak online een afspraak."
+      services: [["Knippen en föhnen", "Dames, heren, kinderen"], ["Kleuren", "Kleuring, highlights, balayage"], ["Verzorging", "Intensieve haarbehandeling"], ["Feestkapsel", "Bruiloft en speciale gelegenheden"]]
+    pt:
+      tagline: "Cabeleireiro em {city}"
+      cta: "Marcar"
+      about: "A {name} recebe-o em {city} para corte, cor e tratamento. Marque online."
+      services: [["Corte e brushing", "Senhora, homem, criança"], ["Coloração", "Cor, madeixas, balayage"], ["Tratamentos", "Hidratação e reconstrução"], ["Penteados", "Casamentos e ocasiões"]]
+    en:
+      tagline: "Hair salon in {city}"
+      cta: "Book now"
+      about: "{name} welcomes you in {city} for cuts, colour and care. Book online."
+      services: [["Cut and blow-dry", "Women, men, kids"], ["Colour", "Colour, highlights, balayage"], ["Treatments", "Deep care and repair"], ["Event styling", "Weddings and occasions"]]
+
+  clinica:
+    mood: soft
+    photo_query: beauty spa treatment
+    fr:
+      tagline: "Soins esthétiques à {city}"
+      cta: "Prendre rendez-vous"
+      about: "{name} propose des soins esthétiques à {city}. Consultez les prestations et réservez en ligne."
+      services: [["Soin du visage", "Nettoyage et hydratation"], ["Épilation", "Toutes zones"], ["Massage", "Détente et bien-être"], ["Mains et pieds", "Manucure et pédicure"]]
+    nl:
+      tagline: "Schoonheidssalon in {city}"
+      cta: "Afspraak maken"
+      about: "{name} biedt schoonheidsbehandelingen in {city}. Bekijk de behandelingen en boek online."
+      services: [["Gezichtsbehandeling", "Reiniging en hydratatie"], ["Ontharing", "Alle zones"], ["Massage", "Ontspanning en welzijn"], ["Handen en voeten", "Manicure en pedicure"]]
+    pt:
+      tagline: "Estética em {city}"
+      cta: "Marcar"
+      about: "A {name} oferece tratamentos de estética em {city}. Veja os tratamentos e marque online."
+      services: [["Limpeza de pele", "Limpeza e hidratação"], ["Depilação", "Todas as zonas"], ["Massagem", "Relaxamento e bem-estar"], ["Mãos e pés", "Manicure e pedicure"]]
+    en:
+      tagline: "Beauty treatments in {city}"
+      cta: "Book now"
+      about: "{name} offers beauty treatments in {city}. See the treatments and book online."
+      services: [["Facial", "Cleansing and hydration"], ["Waxing", "All areas"], ["Massage", "Relax and unwind"], ["Hands and feet", "Manicure and pedicure"]]
+
+  restaurante:
+    mood: warm
+    photo_query: restaurant table food
+    fr:
+      tagline: "Restaurant à {city}"
+      cta: "Réserver une table"
+      about: "{name} vous reçoit à {city}. Consultez la carte et réservez votre table en ligne."
+      services: [["La carte", "Entrées, plats et desserts"], ["Déjeuner", "Formule du midi"], ["Dîner", "Le soir, sur réservation"], ["À emporter", "Commandez et passez prendre"]]
+    nl:
+      tagline: "Restaurant in {city}"
+      cta: "Tafel reserveren"
+      about: "{name} ontvangt u in {city}. Bekijk de kaart en reserveer online een tafel."
+      services: [["De kaart", "Voor-, hoofd- en nagerechten"], ["Lunch", "Lunchmenu"], ["Diner", "'s Avonds, op reservering"], ["Afhalen", "Bestel en haal op"]]
+    pt:
+      tagline: "Restaurante em {city}"
+      cta: "Reservar mesa"
+      about: "A {name} recebe-o em {city}. Veja a ementa e reserve a sua mesa online."
+      services: [["Ementa", "Entradas, pratos e sobremesas"], ["Almoço", "Menu do dia"], ["Jantar", "À noite, com reserva"], ["Take-away", "Encomende e levante"]]
+    en:
+      tagline: "Restaurant in {city}"
+      cta: "Book a table"
+      about: "{name} welcomes you in {city}. See the menu and book your table online."
+      services: [["Menu", "Starters, mains and desserts"], ["Lunch", "Lunch menu"], ["Dinner", "Evenings, by reservation"], ["Takeaway", "Order and collect"]]
+
+  academia:
+    mood: bold
+    photo_query: gym training
+    fr:
+      tagline: "Salle de sport à {city}"
+      cta: "Essai gratuit"
+      about: "{name} est une salle de sport à {city}. Découvrez les formules et réservez une séance d'essai."
+      services: [["Musculation", "Espace libre et machines"], ["Cours collectifs", "Planning de la semaine"], ["Coaching", "Suivi individuel"], ["Abonnements", "Mensuel ou annuel"]]
+    nl:
+      tagline: "Sportschool in {city}"
+      cta: "Gratis proefles"
+      about: "{name} is een sportschool in {city}. Bekijk de abonnementen en plan een proefles."
+      services: [["Krachttraining", "Vrije gewichten en toestellen"], ["Groepslessen", "Weekrooster"], ["Personal training", "Persoonlijke begeleiding"], ["Abonnementen", "Per maand of per jaar"]]
+    pt:
+      tagline: "Ginásio em {city}"
+      cta: "Aula experimental"
+      about: "O {name} é um ginásio em {city}. Veja os planos e marque uma aula experimental."
+      services: [["Musculação", "Pesos livres e máquinas"], ["Aulas de grupo", "Horário semanal"], ["Personal trainer", "Acompanhamento individual"], ["Mensalidades", "Mensal ou anual"]]
+    en:
+      tagline: "Gym in {city}"
+      cta: "Free trial"
+      about: "{name} is a gym in {city}. See the memberships and book a trial session."
+      services: [["Strength", "Free weights and machines"], ["Classes", "Weekly timetable"], ["Coaching", "One-to-one"], ["Memberships", "Monthly or yearly"]]
+
+  pousada:
+    mood: soft
+    photo_query: guest house bedroom
+    fr:
+      tagline: "Chambres d'hôtes à {city}"
+      cta: "Vérifier les disponibilités"
+      about: "{name} propose des chambres à {city}. Vérifiez les disponibilités et réservez en direct."
+      services: [["Chambres", "Simples et doubles"], ["Petit-déjeuner", "Servi chaque matin"], ["Réservation directe", "Sans commission"], ["Accès", "Adresse et itinéraire"]]
+    nl:
+      tagline: "Bed and breakfast in {city}"
+      cta: "Beschikbaarheid bekijken"
+      about: "{name} biedt kamers in {city}. Bekijk de beschikbaarheid en boek rechtstreeks."
+      services: [["Kamers", "Eenpersoons en tweepersoons"], ["Ontbijt", "Elke ochtend"], ["Direct boeken", "Zonder commissie"], ["Bereikbaarheid", "Adres en route"]]
+    pt:
+      tagline: "Alojamento em {city}"
+      cta: "Ver disponibilidade"
+      about: "A {name} tem quartos em {city}. Veja a disponibilidade e reserve diretamente."
+      services: [["Quartos", "Individuais e duplos"], ["Pequeno-almoço", "Servido todas as manhãs"], ["Reserva direta", "Sem comissões"], ["Como chegar", "Morada e percurso"]]
+    en:
+      tagline: "Guest house in {city}"
+      cta: "Check availability"
+      about: "{name} offers rooms in {city}. Check availability and book direct."
+      services: [["Rooms", "Single and double"], ["Breakfast", "Served every morning"], ["Book direct", "No commission"], ["Getting here", "Address and directions"]]
+
+  imobiliaria:
+    mood: clean
+    photo_query: modern apartment interior
+    fr:
+      tagline: "Agence immobilière à {city}"
+      cta: "Estimer mon bien"
+      about: "{name} accompagne la vente et la location à {city}. Demandez une estimation en ligne."
+      services: [["Vente", "Estimation et mise en vente"], ["Location", "Recherche de locataires"], ["Gestion", "Suivi des biens"], ["Biens disponibles", "Nos annonces"]]
+    nl:
+      tagline: "Makelaar in {city}"
+      cta: "Gratis waardebepaling"
+      about: "{name} begeleidt verkoop en verhuur in {city}. Vraag online een waardebepaling aan."
+      services: [["Verkoop", "Waardebepaling en verkoop"], ["Verhuur", "Huurders zoeken"], ["Beheer", "Beheer van panden"], ["Aanbod", "Onze woningen"]]
+    pt:
+      tagline: "Imobiliária em {city}"
+      cta: "Avaliar imóvel"
+      about: "A {name} acompanha a venda e o arrendamento em {city}. Peça uma avaliação online."
+      services: [["Venda", "Avaliação e venda"], ["Arrendamento", "Procura de inquilinos"], ["Gestão", "Acompanhamento de imóveis"], ["Imóveis", "Os nossos anúncios"]]
+    en:
+      tagline: "Estate agent in {city}"
+      cta: "Get a valuation"
+      about: "{name} handles sales and lettings in {city}. Request a valuation online."
+      services: [["Sales", "Valuation and listing"], ["Lettings", "Finding tenants"], ["Management", "Property management"], ["Listings", "Available properties"]]
+
+  oficina:
+    mood: bold
+    photo_query: car mechanic garage
+    fr:
+      tagline: "Garage automobile à {city}"
+      cta: "Demander un devis"
+      about: "{name} est un garage à {city}. Demandez un devis ou un rendez-vous en ligne."
+      services: [["Entretien", "Vidange et révision"], ["Freins", "Plaquettes et disques"], ["Pneus", "Montage et équilibrage"], ["Diagnostic", "Voyants et pannes"]]
+    nl:
+      tagline: "Autogarage in {city}"
+      cta: "Offerte aanvragen"
+      about: "{name} is een garage in {city}. Vraag online een offerte of afspraak aan."
+      services: [["Onderhoud", "Olie en beurt"], ["Remmen", "Blokken en schijven"], ["Banden", "Montage en balanceren"], ["Diagnose", "Storingen en lampjes"]]
+    pt:
+      tagline: "Oficina automóvel em {city}"
+      cta: "Pedir orçamento"
+      about: "A {name} é uma oficina em {city}. Peça orçamento ou marcação online."
+      services: [["Revisão", "Mudança de óleo e revisão"], ["Travões", "Pastilhas e discos"], ["Pneus", "Montagem e calibragem"], ["Diagnóstico", "Avarias e luzes"]]
+    en:
+      tagline: "Car garage in {city}"
+      cta: "Get a quote"
+      about: "{name} is a garage in {city}. Request a quote or booking online."
+      services: [["Servicing", "Oil and service"], ["Brakes", "Pads and discs"], ["Tyres", "Fitting and balancing"], ["Diagnostics", "Faults and warning lights"]]
+
+  _default:
+    mood: clean
+    photo_query: small business storefront
+    fr:
+      tagline: "{category} à {city}"
+      cta: "Nous contacter"
+      about: "{name} à {city}. Toutes les informations et le contact au même endroit."
+      services: []
+    nl:
+      tagline: "{category} in {city}"
+      cta: "Contact opnemen"
+      about: "{name} in {city}. Alle informatie en contact op één plek."
+      services: []
+    pt:
+      tagline: "{category} em {city}"
+      cta: "Contactar"
+      about: "{name} em {city}. Toda a informação e contacto no mesmo sítio."
+      services: []
+    en:
+      tagline: "{category} in {city}"
+      cta: "Get in touch"
+      about: "{name} in {city}. All the information and contact in one place."
+      services: []

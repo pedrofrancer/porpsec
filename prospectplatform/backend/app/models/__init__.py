@@ -6,6 +6,8 @@ from app.models.audit import Audit
 from app.models.opportunity import Opportunity, OpportunityRule
 from app.models.message import Message
 from app.models.prospection import ProspectingQueue, OptOut, ActionLog
+from app.models.inbound import InboundReply
+from app.models.preview import SitePreview
 
 __all__ = [
     "Base",
@@ -16,4 +18,5 @@ __all__ = [
     "Opportunity", "OpportunityRule",
     "Message",
     "ProspectingQueue", "OptOut", "ActionLog",
+    "InboundReply", "SitePreview",
 ]
