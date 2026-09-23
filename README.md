@@ -1,27 +1,50 @@
 # porpsec
 
 Plataforma de prospecção B2B para negócios locais. Encontra pequenas empresas com presença
-digital fraca, mede o que falta com dados verificáveis, escreve para o dono no idioma dele e,
+digital fraca, mede o que falta com dado verificável, escreve para o dono no idioma dele e,
 quando ele responde, entrega uma prévia do site novo já com a marca da empresa.
 
-Comecei no Brasil, na Região dos Lagos, com WhatsApp. Hoje o foco é a Europa por e-mail:
+Comecei no Brasil, na Região dos Lagos, pelo WhatsApp. Hoje o foco é a Europa por e-mail:
 Portugal, Bruxelas, França e Holanda.
 
 ## Por que existe
 
-Prospectar à mão é lento, e mensagem genérica não converte. A ideia aqui é o contrário do spam:
-poucos contatos por dia, cada um citando um problema real do site da empresa (não abre no
-telemóvel, demora 6 segundos, não tem reserva online), e a prova de valor chegando na hora certa,
-que é quando a pessoa responde.
+Prospecção é, no fundo, um problema de decisão sob incerteza com amostra minúscula. Não sei
+quem vai responder, não sei por quê, e cada contato mal feito tem custo: para quem recebe e para
+a reputação de quem envia. A resposta usual é aumentar o volume e deixar a lei dos grandes números
+fazer o trabalho. Eu fui pelo caminho inverso: poucos contatos por dia, cada um citando um
+problema real e verificável do site da empresa (não abre no telemóvel, demora seis segundos, não
+tem reserva online), e a prova de valor chegando no único momento em que ela importa, quando a
+pessoa responde.
 
-Duas regras guiam o projeto:
+Duas restrições guiam o projeto inteiro:
 
 - **Nada inventado.** Mensagem sem dado concreto da auditoria não sai. A prévia usa nome, logo,
   cores e textos da própria empresa; foto de banco aparece marcada como ilustrativa; nenhum
-  depoimento, prêmio ou "desde 1998" fabricado.
+  depoimento, prêmio ou "desde 1998" fabricado. Um sistema que fabrica evidência para convencer
+  alguém é, tecnicamente, engenharia social, e eu passo tempo demais do outro lado disso para
+  construir uma.
 - **Conformidade antes de volume.** Só escrevo para a caixa genérica do domínio da empresa, com
-  remetente identificado e saída por "STOP". Na Holanda, só para B.V./N.V. Espanha fica desligada
-  porque a LSSI exige consentimento prévio. A base legal de cada país fica registrada em cada envio.
+  remetente identificado e saída por STOP. Na Holanda, só para B.V./N.V. A Espanha fica desligada,
+  porque a LSSI exige consentimento prévio. A base legal de cada país é registrada em cada envio:
+  não porque registrar a torne válida, mas porque torna o risco auditável.
+
+## Modelo de ameaça, em resumo
+
+O que me preocupa, em ordem:
+
+1. **O sistema falar em meu nome sem que eu tenha decidido.** Por isso a prévia e a resposta ficam
+   em rascunho até eu aprovar; o envio automático existe, mas é opt-in explícito.
+2. **Dado pessoal onde deveria haver dado de empresa.** Webmail e e-mail com nome de pessoa são
+   recusados na origem; opt-out é permanente e checado antes de qualquer envio, em qualquer canal.
+3. **Exposição da operação.** O painel e a API escutam só em `127.0.0.1` e ainda não têm
+   autenticação (#5). As prévias publicadas levam `noindex`, slug com sufixo aleatório e expiram
+   em trinta dias.
+4. **Entrada hostil.** Texto que chega de fora é não confiável por definição. As respostas
+   recebidas e as prévias já são escapadas no painel, e a prévia escapa tudo que vem do site
+   auditado; as telas antigas do painel (empresas, fila) ainda renderizam o nome da empresa cru.
+
+Nenhuma dessas camadas fecha o problema por completo. Elas só estreitam a janela.
 
 ## Como funciona
 
@@ -68,13 +91,27 @@ Testes: `.venv\Scripts\python -m pytest tests -q` na pasta `prospectplatform`.
 
 ## Estado
 
-O pipeline europeu está completo e coberto por testes com dublês. Falta o primeiro teste contra
-os serviços reais e a validação jurídica por país antes de subir o volume. O que está em aberto
-vive nas [issues](https://github.com/pedrofrancer/porpsec/issues).
+| Etapa | O quê | Estado |
+|---|---|---|
+| 1 a 13 | Coleta, auditoria, oportunidades, fila, envio por WhatsApp no Brasil | Fechadas |
+| 14 | Pipeline europeu: e-mail, respostas, prévia de site (#1) | Fechada |
+| 15 | Teste ponta a ponta contra os serviços reais (#2) | Aberta |
+| 16 | Validação jurídica por país (#3) | Aberta |
+| 17 | Suíte de testes no CI (#4) | Aberta |
+| 18 | Autenticação no painel e na API (#5) | Aberta |
+| 19 | Métricas do piloto (#6) | Aberta |
+| 20 | Forma jurídica na Holanda pela KvK (#7) | Aberta |
+| 21 | Resposta no WhatsApp (#8) | Aberta |
+| 22 | Encerramento limpo dos loops de fundo (#9) | Aberta |
+
+Cento e sessenta testes passam com dublês; nenhum deles ainda falou com o Gmail de verdade. Até a
+Etapa 15 fechar, o pipeline europeu é uma hipótese bem formalizada, não um resultado.
 
 Documentos de produto: [PRD](prospectplatform/prd.md) e [TechSpec](prospectplatform/techspec.md).
 
 ## Autor
 
-Pedro Francisco, engenheiro de software com foco em segurança da informação.
+Pedro Francisco. Engenheiro de software com foco em segurança da informação, pentester,
+matemático, PhD em ciência da computação pela USP.
+
 Contato: pedroradical06@gmail.com
