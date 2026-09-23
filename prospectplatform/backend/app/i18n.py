@@ -21,22 +21,22 @@ _FOOTER = {
     "pt": (
         "--\n{brand}{contact_line}\n{address}\n"
         "Recebeu este e-mail porque o contacto de {company} está publicado no site da empresa. "
-        "Para não receber mais mensagens, responda STOP e removemos o endereço de imediato."
+        "Para não receber mais mensagens, responda STOP e eu removo o endereço de imediato."
     ),
     "fr": (
         "--\n{brand}{contact_line}\n{address}\n"
         "Vous recevez ce message car l'adresse de {company} est publiée sur son site. "
-        "Pour ne plus recevoir de messages, répondez STOP et nous supprimerons l'adresse immédiatement."
+        "Pour ne plus recevoir de messages, répondez STOP et je supprime l'adresse tout de suite."
     ),
     "nl": (
         "--\n{brand}{contact_line}\n{address}\n"
         "U ontvangt deze e-mail omdat het adres van {company} op de eigen website staat. "
-        "Wilt u geen berichten meer? Antwoord STOP en wij verwijderen het adres direct."
+        "Wilt u geen berichten meer? Antwoord STOP en ik verwijder het adres direct."
     ),
     "en": (
         "--\n{brand}{contact_line}\n{address}\n"
         "You are receiving this because the address of {company} is published on its website. "
-        "Reply STOP and we will remove the address right away."
+        "Reply STOP and I will remove the address right away."
     ),
 }
 
