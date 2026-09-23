@@ -13,6 +13,13 @@ class Message(Base):
     opportunity_ids: Mapped[str] = mapped_column(Text, nullable=False)
     message_text: Mapped[str] = mapped_column(Text, nullable=False)
 
+    channel: Mapped[str] = mapped_column(String(20), nullable=False, default="whatsapp", server_default="whatsapp")
+    message_type: Mapped[str] = mapped_column(String(30), nullable=False, default="outreach", server_default="outreach")
+    subject: Mapped[str | None] = mapped_column(String(300))
+    language: Mapped[str | None] = mapped_column(String(10))
+    # E-mail: Message-ID do envio (casa com In-Reply-To da resposta). WhatsApp: numero normalizado.
+    thread_id: Mapped[str | None] = mapped_column(String(300), index=True)
+
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="rascunho")
     generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
