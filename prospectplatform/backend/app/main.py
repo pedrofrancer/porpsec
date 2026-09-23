@@ -27,9 +27,12 @@ def get_dispatcher():
 
 
 def _reply_handler_factory():
+    from app.branding.preview_service import enqueue_for_reply
     from app.inbound.reply_handler import ReplyEventHandler
     db = SessionLocal()
-    return ReplyEventHandler(db), db
+    handler = ReplyEventHandler(db, on_first_reply=lambda reply, company, outreach:
+                                enqueue_for_reply(db, reply, company, outreach))
+    return handler, db
 
 
 def get_reply_listener():
@@ -54,8 +57,13 @@ async def lifespan(app: FastAPI):
     reply_listener = get_reply_listener()
     reply_listener.start()
 
+    from app.branding.preview_service import PreviewWorker
+    preview_worker = PreviewWorker(SessionLocal)
+    preview_worker.start()
+
     yield
 
+    preview_worker.stop()
     reply_listener.stop()
     dispatcher.stop()
     if hasattr(db, 'close'):
@@ -70,6 +78,10 @@ app = FastAPI(
 )
 
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
+
+# Rascunhos das previas, para revisar antes de publicar (a versao publica fica no Cloudflare Pages).
+settings.previews_dir.mkdir(exist_ok=True)
+app.mount("/preview", StaticFiles(directory=str(settings.previews_dir), html=True), name="previews")
 
 static_dir = Path(__file__).resolve().parent.parent.parent / "interface"
 static_dir.mkdir(exist_ok=True)

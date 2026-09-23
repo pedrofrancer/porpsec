@@ -349,6 +349,7 @@ class Dispatcher:
             Message.sent_at >= since_local.astimezone(timezone.utc),
             Message.status == "enviado",
             Message.channel == channel,
+            Message.message_type == "outreach",  # follow-up de quem respondeu nao gasta cota de frio
         ).scalar()
 
     def _can_send_hourly(self, channel: str = "whatsapp") -> bool:
