@@ -504,6 +504,113 @@ class Dispatcher:
             return 0
         return await self._run_auto_collection()
 
+    async def _prepare_company(self, company: Company) -> tuple[Audit | None, list[Opportunity]]:
+        """Garante auditoria e oportunidades da empresa (roda o que faltar)."""
+        audit = self.db.query(Audit).filter(
+            Audit.company_id == company.id
+        ).order_by(Audit.id.desc()).first()
+
+        if not audit:
+            try:
+                from app.auditors.website_auditor import WebsiteAuditor
+                auditor = WebsiteAuditor(self.db)
+                result = await auditor.audit(company.id)
+                audit = auditor.save_audit(company.id, result)
+            except Exception as e:
+                logger.warning(f"Auditoria falhou para {company.name}: {e}")
+
+        opportunities = self.db.query(Opportunity).filter(
+            Opportunity.company_id == company.id
+        ).all()
+
+        if not opportunities:
+            try:
+                from app.opportunities.engine import OpportunityEngine
+                engine = OpportunityEngine(self.db)
+                results = engine.evaluate(company)
+                engine.save_opportunities(company, results)
+                opportunities = self.db.query(Opportunity).filter(
+                    Opportunity.company_id == company.id
+                ).all()
+            except Exception as e:
+                logger.warning(f"Oportunidades falharam para {company.name}: {e}")
+
+        return audit, opportunities
+
+    async def _compose(
+        self,
+        company: Company,
+        audit: Audit | None,
+        opportunities: list[Opportunity],
+        channel: str,
+        country: CountrySettings,
+    ) -> tuple[Message, str | None]:
+        """Gera e valida a mensagem de outreach do canal. Retorna (msg salva, erro de validacao)."""
+        from app.api.v1.endpoints.diagnosis import build_diagnosis
+
+        diagnosis = build_diagnosis(company, audit, opportunities, self.db)
+        subject, language = None, None
+
+        if channel == "email":
+            from app.i18n import legal_footer
+            from app.llm.email_agent import generate_outreach_email
+            from app.sending.email_validator import validate_email
+
+            language = country.resolve_language(audit.site_lang if audit else None)
+            draft = await generate_outreach_email(company, audit, opportunities, diagnosis, language)
+            if draft is None:
+                message_text, error = "", "Sem dado concreto da auditoria para citar"
+            else:
+                subject = draft.subject
+                _, error = validate_email(draft.subject, draft.body, company.name)
+                message_text = draft.body + "\n\n" + legal_footer(
+                    language, settings.SENDER_BRAND, settings.SENDER_POSTAL_ADDRESS, company.name,
+                    settings.SENDER_CONTACT_NAME, settings.SENDER_WEBSITE,
+                )
+        else:
+            from app.llm.sales_agent import generate_outreach_message
+
+            message_text = await generate_outreach_message(company, audit, opportunities, diagnosis)
+            _, error = ContentValidator.validate(message_text, company.name, audit, opportunities)
+
+        now = datetime.now(timezone.utc)
+        msg = Message(
+            company_id=company.id,
+            opportunity_ids=json.dumps([o.id for o in opportunities[:3]]),
+            message_text=message_text,
+            channel=channel,
+            message_type="outreach",
+            subject=subject,
+            language=language,
+            status="erro_validacao" if error else "aprovado",
+            generated_at=now,
+            approved_at=None if error else now,
+            last_error=error,
+            llm_model=settings.LLM_MODEL,
+        )
+        self.db.add(msg)
+        self.db.commit()
+        self.db.refresh(msg)
+        if error:
+            logger.warning(f"Validacao falhou para {company.name} ({channel}): {error}")
+        return msg, error
+
+    def _upsert_queue(self, company_id: int, status: str, notes: str):
+        entry = self.db.query(ProspectingQueue).filter(ProspectingQueue.company_id == company_id).first()
+        if entry:
+            entry.status = status
+            entry.notes = notes
+            entry.updated_at = datetime.now(timezone.utc)
+        else:
+            self.db.add(ProspectingQueue(company_id=company_id, status=status, notes=notes))
+        self.db.commit()
+
+    def _country_of(self, company: Company) -> CountrySettings | None:
+        try:
+            return get_country(country_code_for_company(company))
+        except KeyError:
+            return None
+
     async def _auto_enqueue(self) -> int:
         """Auto-enfileira empresas elegíveis. Retorna quantidade processada."""
         eligible = self._get_eligible_companies()
