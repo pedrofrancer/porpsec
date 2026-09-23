@@ -67,10 +67,11 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    preview_worker.stop()
-    reply_listener.stop()
+    # Ordem: primeiro quem envia (previa e outreach), depois quem le.
+    await preview_worker.shutdown()
+    await dispatcher.shutdown()
+    await reply_listener.shutdown()
     keep_awake.disable()
-    dispatcher.stop()
     if hasattr(db, 'close'):
         db.close()
     logger.info("Dispatcher encerrado")
