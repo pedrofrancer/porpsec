@@ -20,7 +20,7 @@ OPT_OUT_KEYWORDS = [
 _FOOTER = {
     "pt": (
         "--\n{brand}{contact_line}\n{address}\n"
-        "Recebeu este e-mail porque o contacto de {company} está publicado no site da empresa. "
+        "Recebeu este e-mail porque o vosso contacto está publicado no site da empresa. "
         "Para não receber mais mensagens, responda STOP e eu removo o endereço de imediato."
     ),
     "fr": (
@@ -52,11 +52,11 @@ def legal_footer(language: str | None, brand: str, address: str, company_name: s
     contact_line = f" ({extras})" if extras else ""
     return _FOOTER[lang_key(language)].format(
         brand=brand, contact_line=contact_line, address=address, company=company_name,
-        de_company=_de(company_name),
+        de_company=de_fr(company_name),
     )
 
 
-def _de(name: str) -> str:
+def de_fr(name: str) -> str:
     """Elisao do frances: "d'Atelier", "de Barbier"."""
     first = name.strip()[:1].lower()
     return f"d'{name}" if first and first in "aeiouhàâéèêëîïôûü" else f"de {name}"
