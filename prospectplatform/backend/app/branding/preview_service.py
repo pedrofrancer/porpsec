@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.branding import brand_kit
 from app.branding.publisher import PagesPublisher, make_slug
 from app.branding.site_renderer import render_site
+from app.core.background import StopSignal, graceful_stop
 from app.core.config import settings
 from app.core.countries import country_code_for_company, get_country
 from app.i18n import legal_footer
@@ -213,6 +214,7 @@ class PreviewWorker:
         self.session_factory = session_factory
         self._task: asyncio.Task | None = None
         self._last_expire: datetime | None = None
+        self._stop = StopSignal()
 
     async def tick(self):
         db = self.session_factory()
@@ -227,15 +229,20 @@ class PreviewWorker:
             db.close()
 
     async def run_loop(self):
-        while True:
+        while not self._stop.requested:
             try:
                 await self.tick()
             except Exception as e:
                 logger.error(f"PreviewWorker: {e}", exc_info=True)
-            await asyncio.sleep(self.INTERVAL_SECONDS)
+            if await self._stop.sleep(self.INTERVAL_SECONDS):
+                break
 
     def start(self):
         self._task = asyncio.create_task(self.run_loop())
+
+    async def shutdown(self):
+        await graceful_stop(self._task, self._stop, "Worker de previas")
+        self._task = None
 
     def stop(self):
         if self._task and not self._task.done():
