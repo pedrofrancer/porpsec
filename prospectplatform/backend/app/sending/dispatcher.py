@@ -567,13 +567,17 @@ class Dispatcher:
             from app.sending.email_validator import validate_email
 
             language = country.resolve_language(audit.site_lang if audit else None)
-            draft = await generate_outreach_email(company, audit, opportunities, diagnosis, language)
+            preview = await self._outreach_preview(company, audit, language)
+            url = preview.preview_url if preview else None
+            draft = await generate_outreach_email(company, audit, opportunities, diagnosis, language, url)
             if draft is None:
                 message_text, error = "", "Sem dado concreto da auditoria para citar"
             else:
                 subject = draft.subject
-                _, error = validate_email(draft.subject, draft.body, company.name)
+                _, error = validate_email(draft.subject, draft.body, company.name, url)
                 message_text = finish_email(draft.body, language, company.name)
+            if preview and error:
+                self._previews().discard(preview)
         else:
             from app.llm.sales_agent import generate_outreach_message
 
@@ -601,6 +605,28 @@ class Dispatcher:
         if error:
             logger.warning(f"Validacao falhou para {company.name} ({channel}): {error}")
         return msg, error
+
+    def _previews(self):
+        from app.branding.preview_service import PreviewService
+        return PreviewService(self.db)
+
+    async def _outreach_preview(self, company: Company, audit: Audit | None, language: str):
+        """Rascunho do site para ir no primeiro e-mail. Sem Pages ou com erro, o e-mail so oferece."""
+        if not settings.pages_configured:
+            return None
+        try:
+            return await self._previews().build_for_outreach(company, audit, language)
+        except Exception as e:
+            self.db.rollback()
+            logger.warning(f"Previa do outreach falhou para {company.name}: {e}")
+            return None
+
+    def _outreach_preview_ready(self, msg: Message, company: Company):
+        """Previa ligada a mensagem aprovada. None quando a mensagem nao leva previa."""
+        preview = self._previews().outreach_preview(company.id)
+        if preview and preview.preview_url and preview.preview_url in (msg.message_text or ""):
+            return preview
+        return None
 
     def _upsert_queue(self, company_id: int, status: str, notes: str):
         entry = self.db.query(ProspectingQueue).filter(ProspectingQueue.company_id == company_id).first()
@@ -697,6 +723,14 @@ class Dispatcher:
             Message.channel == channel,
         ).order_by(Message.id.desc()).first()
 
+        # Mensagem aprovada antes da previa existir: refaz para o link ir no primeiro e-mail.
+        if msg is not None and channel == "email" and settings.pages_configured \
+                and self._outreach_preview_ready(msg, company) is None:
+            msg.status = "descartado"
+            msg.last_error = "Refeita com a previa no primeiro e-mail"
+            self.db.commit()
+            msg = None
+
         if msg is None:
             country = self._country_of(company) or get_country("BR")
             audit, opportunities = await self._prepare_company(company)
@@ -731,10 +765,15 @@ class Dispatcher:
     async def _send_message(self, msg: Message, company: Company) -> bool:
         """Envia a mensagem pelo canal dela e registra o resultado."""
         contact = company.email if msg.channel == "email" else company.phone
+        preview = self._outreach_preview_ready(msg, company) if msg.channel == "email" else None
         try:
+            if preview:
+                await self._previews().publish_for_outreach(preview)
             result, contact = await self._deliver(msg, company)
             if result is None:
                 return False
+            if preview:
+                self._previews().mark_sent(preview, msg.id)
 
             msg.status = "enviado"
             msg.sent_at = datetime.now(timezone.utc)
