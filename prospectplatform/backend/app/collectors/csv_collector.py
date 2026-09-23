@@ -48,6 +48,7 @@ class CSVCollector(BaseCollector):
         telefone = row.get("telefone", "").strip() or None
         website = row.get("website", "").strip() or None
         instagram = row.get("instagram", "").strip() or None
+        email = (row.get("email") or "").strip().lower() or None
 
         if not nome or not categoria_slug or not cidade_nome:
             raise ValueError("nome, categoria e cidade são obrigatórios")
@@ -83,6 +84,8 @@ class CSVCollector(BaseCollector):
             phone=telefone,
             website=website,
             instagram=instagram,
+            email=email,
+            email_source="csv_import" if email else None,
             source="csv_import",
             collected_at=datetime.now(timezone.utc),
         )

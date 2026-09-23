@@ -13,6 +13,7 @@ class CompanyBase(BaseModel):
     website: str | None = None
     instagram: str | None = None
     facebook: str | None = None
+    email: str | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -34,6 +35,7 @@ class CompanyUpdate(BaseModel):
     phone: str | None = None
     website: str | None = None
     instagram: str | None = None
+    email: str | None = None
     google_rating: float | None = None
     google_review_count: int | None = None
     google_url: str | None = None
@@ -45,6 +47,8 @@ class CompanyRead(CompanyBase):
     google_rating: float | None
     google_review_count: int | None
     google_url: str | None
+    email_source: str | None = None
+    preferred_channel: str | None = None
     source: str
     collected_at: datetime
     created_at: datetime
