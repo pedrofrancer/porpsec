@@ -10,7 +10,7 @@ import re
 
 from app.core.config import settings
 from app.core.countries import search_term
-from app.i18n import LANGUAGE_NAMES, lang_key
+from app.i18n import LANGUAGE_NAMES, de_fr, lang_key
 from app.llm.client import LLMClient
 from app.llm.sales_agent import _build_context
 
@@ -200,7 +200,7 @@ async def generate_outreach_email(company, audit, opportunities, diagnosis, lang
 
 _FALLBACK = {
     "fr": {
-        "subject": "le site de {name}",
+        "subject": "le site {de_name}",
         "mobile": "sur mon téléphone, le site s'affiche en version ordinateur et il faut zoomer pour tout lire",
         "slow": "sur mon téléphone, le site a mis plus de {secs} secondes à s'afficher",
         "booking": "je n'ai pas trouvé de moyen de réserver en ligne sur le site",
@@ -235,17 +235,17 @@ _FALLBACK = {
                      "makkelijk aan te passen.{price}\n\nWat vindt u ervan?",
     },
     "pt": {
-        "subject": "o site da {name}",
+        "subject": "{name}: o vosso site",
         "mobile": "no telemóvel, o site abre na versão de computador e é preciso fazer zoom para ler",
         "slow": "no telemóvel, o site demorou mais de {secs} segundos a abrir",
         "booking": "não encontrei forma de marcar online no site",
         "https": "o browser mostra 'não seguro' ao abrir o site, por falta de HTTPS",
-        "body": "Bom dia,\n\nEstava à procura de {category} em {city} e encontrei a {name}. Uma coisa que "
+        "body": "Bom dia,\n\nPesquisei «{category} {city}» e apareceu-me {name}. Uma coisa que "
                 "reparei: {fact}.\n\nSó vi de fora, por isso pode já estar nos vossos planos. Se não estiver, "
                 "posso preparar uma pré-visualização de uma versão nova, com o vosso nome e as vossas cores, para "
                 "verem como ficaria.{price} Não fica nenhum compromisso.\n\nQuer que envie?",
         "price": " Um site assim começa em {price}.",
-        "body_link": "Bom dia,\n\nEstava à procura de {category} em {city} e encontrei a {name}. Uma coisa que "
+        "body_link": "Bom dia,\n\nPesquisei «{category} {city}» e apareceu-me {name}. Uma coisa que "
                      "reparei: {fact}.\n\nSó vi de fora, por isso pode já estar nos vossos planos. Mesmo assim "
                      "fiz um primeiro rascunho de uma versão nova, com o vosso nome e as vossas cores:\n\n{url}\n\n"
                      "Foi feito só com o que está público, os vossos clientes não o veem, e muda-se tudo com "
@@ -277,4 +277,4 @@ def fallback_email(company, audit, language: str, preview_url: str | None = None
         url=preview_url or "",
         price=texts["price"].format(price=price) if price else "",
     )
-    return EmailDraft(texts["subject"].format(name=company.name), body)
+    return EmailDraft(texts["subject"].format(name=company.name, de_name=de_fr(company.name)), body)
