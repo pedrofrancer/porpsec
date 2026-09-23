@@ -198,3 +198,127 @@ def test_build_message_headers():
     assert msg["Message-ID"].endswith("@gmail.com>")
     assert msg["In-Reply-To"] == "<a@b>"
     assert "mailto:studio@gmail.com?subject=STOP" in msg["List-Unsubscribe"]
+
+
+# --- dispatcher (banco em memoria, pais FR) ---
+
+@pytest.fixture
+def db():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    session.add_all([
+        Country(id=1, name="France", code="FR"),
+        State(id=1, name="Ile-de-France", code="FR-IDF", country_id=1),
+        City(id=1, name="Paris", state_id=1),
+        Category(id=1, name="Barbearia", slug="barbearia"),
+    ])
+    session.commit()
+    yield session
+    session.close()
+
+
+@pytest.fixture
+def fr_company(db):
+    c = Company(name="Barbier Lumière", city_id=1, category_id=1, website="https://www.barbier-lumiere.fr",
+                email="contact@barbier-lumiere.fr", source="test", collected_at=datetime.now(timezone.utc))
+    db.add(c)
+    db.commit()
+    db.add(Audit(company_id=c.id, digital_score=30, has_viewport=False, has_https=True, has_scheduling=False,
+                 response_time_ms=1500, site_lang="fr", audited_at=datetime.now(timezone.utc)))
+    db.commit()
+    return c
+
+
+@pytest.fixture
+def no_llm():
+    with patch("app.llm.email_agent.LLMClient") as cls:
+        cls.return_value.is_configured = False
+        yield
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_eu_company_goes_email(db, fr_company, no_llm):
+    d = Dispatcher(db)
+    assert await d._auto_enqueue() == 1
+    db.refresh(fr_company)
+    assert fr_company.preferred_channel == "email"
+    msg = db.query(Message).filter_by(company_id=fr_company.id).one()
+    assert msg.channel == "email" and msg.status == "aprovado" and msg.language == "fr-FR"
+    assert msg.subject
+    assert "STOP" in msg.message_text  # rodape legal anexado
+    assert db.query(ProspectingQueue).filter_by(company_id=fr_company.id).one().status == "PENDENTE"
+
+
+@pytest.mark.asyncio
+async def test_auto_enqueue_marks_not_eligible(db, fr_company, no_llm):
+    fr_company.email = "barbier@gmail.com"
+    db.commit()
+    d = Dispatcher(db)
+    await d._auto_enqueue()
+    entry = db.query(ProspectingQueue).filter_by(company_id=fr_company.id).one()
+    assert entry.status == "NAO_ELEGIVEL" and "webmail" in entry.notes
+    assert d._get_eligible_companies() == []  # nao volta para a fila a cada ciclo
+
+
+@pytest.mark.asyncio
+async def test_send_email_records_thread_and_legal_basis(db, fr_company, no_llm):
+    d = Dispatcher(db)
+    await d._auto_enqueue()
+    entry = db.query(ProspectingQueue).filter_by(company_id=fr_company.id).one()
+
+    with patch("app.sending.email_client.EmailSender.is_configured", new=AsyncMock(return_value=True)), \
+         patch("app.sending.email_client.EmailSender.send",
+               new=AsyncMock(return_value={"message_id": "<abc@gmail.com>", "to": "x"})) as send, \
+         patch.object(WarmupManager, "register_first_use"):
+        assert await d._process_company(entry) is True
+
+    to, subject, body = send.call_args.args
+    assert to == "contact@barbier-lumiere.fr" and subject and "STOP" in body
+    msg = db.query(Message).filter_by(company_id=fr_company.id).one()  # reaproveitou a msg aprovada
+    assert msg.status == "enviado" and msg.thread_id == "<abc@gmail.com>"
+    log = db.query(ActionLog).filter_by(action="mensagem_enviada").one()
+    assert "CNIL" in log.details
+
+
+@pytest.mark.asyncio
+async def test_send_email_not_configured_keeps_message(db, fr_company, no_llm):
+    d = Dispatcher(db)
+    await d._auto_enqueue()
+    entry = db.query(ProspectingQueue).filter_by(company_id=fr_company.id).one()
+    with patch("app.sending.email_client.EmailSender.is_configured", new=AsyncMock(return_value=False)):
+        assert await d._process_company(entry) is False
+    msg = db.query(Message).filter_by(company_id=fr_company.id).one()
+    assert msg.status == "aprovado"
+    assert d._consecutive_errors == 0
+
+
+def test_email_opt_out_blocks(db, fr_company):
+    db.add(OptOut(contact_identifier="contact@barbier-lumiere.fr"))
+    db.commit()
+    d = Dispatcher(db)
+    assert d._check_opt_out(fr_company)
+    assert d._get_eligible_companies() == []
+
+
+def test_send_window_per_country():
+    d = Dispatcher(None)
+    with patch("app.sending.dispatcher.datetime") as mock_dt:
+        # 08:30 UTC = 10:30 em Paris (dentro) e 05:30 em Sao Paulo (fora)
+        fixed = datetime(2026, 9, 22, 8, 30, tzinfo=timezone.utc)
+        mock_dt.now.side_effect = lambda tz=None: fixed.astimezone(tz) if tz else fixed
+        assert d._is_within_send_window(FR)
+        assert not d._is_within_send_window(BR)
+        assert not d._is_within_send_window()
+
+
+def test_warmup_is_per_channel(tmp_path):
+    original = WarmupManager.WARMUP_FILE
+    WarmupManager.WARMUP_FILE = tmp_path / "warmup_state.json"
+    try:
+        WarmupManager.register_first_use("email")
+        assert WarmupManager._file("email").exists()
+        assert not WarmupManager.WARMUP_FILE.exists()
+        assert WarmupManager.get_max_today("email") == 5
+    finally:
+        WarmupManager.WARMUP_FILE = original
