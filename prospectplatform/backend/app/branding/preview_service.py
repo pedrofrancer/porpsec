@@ -67,34 +67,67 @@ class PreviewService:
         except KeyError:
             return "en"
 
-    async def build_draft(self, preview: SitePreview) -> SitePreview:
-        company = preview.company
-        audit = self.db.query(Audit).filter(Audit.company_id == company.id).order_by(Audit.id.desc()).first()
-        language = self._language(preview, company, audit)
-
+    async def _render(self, preview: SitePreview, company, audit, language: str):
         # So a chamada HTTP das fotos vai para thread; a sessao do banco fica nesta.
         photos = await asyncio.to_thread(brand_kit.pexels_photos, brand_kit.photo_query_for(company), 4)
         kit = brand_kit.build_brand_kit(company, audit, language, photo_source=lambda q, n: photos[:n])
         html = render_site(kit, settings.SENDER_BRAND)
         self.publisher.write(preview.slug, html)
+        preview.language = language
+        preview.template_slug = f"{kit.category_slug}:{kit.mood}"
+        preview.brand_kit_json = kit.to_json()
+        preview.html = html
+        preview.preview_url = self.publisher.public_url(preview.slug)
+        preview.generated_at = datetime.now(timezone.utc)
+        return kit
 
-        url = self.publisher.public_url(preview.slug)
+    async def build_for_outreach(self, company, audit, language: str) -> SitePreview:
+        """Previa feita antes do primeiro e-mail: o link vai no proprio outreach (sem reply)."""
+        preview = SitePreview(company_id=company.id, slug=make_slug(company.name), status="rascunho")
+        await self._render(preview, company, audit, language)
+        self.db.add(preview)
+        self.db.commit()
+        logger.info(f"Previa do outreach em rascunho: {company.name} ({preview.slug})")
+        return preview
+
+    def outreach_preview(self, company_id: int, statuses=("rascunho", "publicado")) -> SitePreview | None:
+        return self.db.query(SitePreview).filter(
+            SitePreview.company_id == company_id, SitePreview.reply_id.is_(None),
+            SitePreview.status.in_(statuses),
+        ).order_by(SitePreview.id.desc()).first()
+
+    async def publish_for_outreach(self, preview: SitePreview):
+        """Sobe a previa antes do envio: link que chega quebrado e pior que link nenhum."""
+        if preview.status == "rascunho":
+            await asyncio.to_thread(self.publisher.deploy)
+            preview.status = "publicado"
+            preview.published_at = datetime.now(timezone.utc)
+            preview.expires_at = preview.published_at + timedelta(days=settings.PREVIEW_TTL_DAYS)
+            self.db.commit()
+
+    def mark_sent(self, preview: SitePreview, message_id: int):
+        preview.status = "enviado"
+        preview.sent_at = datetime.now(timezone.utc)
+        preview.followup_message_id = message_id
+        self.db.commit()
+
+    async def build_draft(self, preview: SitePreview) -> SitePreview:
+        company = preview.company
+        audit = self.db.query(Audit).filter(Audit.company_id == company.id).order_by(Audit.id.desc()).first()
+        language = self._language(preview, company, audit)
+
+        kit = await self._render(preview, company, audit, language)
+        url = preview.preview_url
         reply = preview.reply
         outreach = reply.message if reply else None
         text = await compose_followup(company.name, reply.raw_content if reply else "", language, url,
                                       kit.brand_colors_from_site, settings.OFFER_PRICE_RANGE.strip())
 
-        preview.language = language
-        preview.template_slug = f"{kit.category_slug}:{kit.mood}"
-        preview.brand_kit_json = kit.to_json()
-        preview.html = html
-        preview.preview_url = url
-        subject = (outreach.subject if outreach and outreach.subject else company.name)
+        subject =(outreach.subject if outreach and outreach.subject else company.name)
         preview.followup_subject = subject if subject.lower().startswith("re:") else f"Re: {subject}"
         preview.followup_text = text
         preview.status = "rascunho"
         preview.last_error = None
-        preview.generated_at = datetime.now(timezone.utc)
         self.db.commit()
         logger.info(f"Previa em rascunho: {company.name} ({preview.slug})")
         return preview

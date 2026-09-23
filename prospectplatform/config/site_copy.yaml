@@ -16,6 +16,7 @@ ui:
     write: "Écrire"
     rating: "{rating} sur Google · {count} avis"
     menu_home: "Accueil"
+    open_map: "Itinéraire"
   nl:
     banner: "Voorbeeld gemaakt door {brand} voor {name}. Dit is nog geen live website."
     photos_note: "Illustratieve foto's ({credit}). Deze worden vervangen door uw eigen foto's."
@@ -27,6 +28,7 @@ ui:
     write: "Mailen"
     rating: "{rating} op Google · {count} reviews"
     menu_home: "Home"
+    open_map: "Route"
   pt:
     banner: "Pré-visualização feita por {brand} para {name}. Ainda não é um site publicado."
     photos_note: "Fotografias ilustrativas ({credit}). Serão substituídas pelas vossas."
@@ -38,6 +40,7 @@ ui:
     write: "Escrever"
     rating: "{rating} no Google · {count} avaliações"
     menu_home: "Início"
+    open_map: "Como chegar"
   en:
     banner: "Preview made by {brand} for {name}. This is not a live website yet."
     photos_note: "Illustrative photos ({credit}). They will be replaced by your own."
@@ -49,6 +52,7 @@ ui:
     write: "Email"
     rating: "{rating} on Google · {count} reviews"
     menu_home: "Home"
+    open_map: "Directions"
 
 categories:
   barbearia:
