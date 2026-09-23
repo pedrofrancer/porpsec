@@ -13,6 +13,7 @@ import yaml
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.background import StopSignal, graceful_stop
 from app.core.config import settings
 from app.models.company import Company
 from app.models.audit import Audit
@@ -249,6 +250,7 @@ class Dispatcher:
         self._consecutive_errors = 0
         self._circuit_open = False
         self._loop_task: asyncio.Task | None = None
+        self._stop = StopSignal()
         self._started_at: datetime | None = None
         self._last_cycle_at: datetime | None = None
         self._next_cycle_at: datetime | None = None
@@ -298,12 +300,13 @@ class Dispatcher:
             f"Dispatcher loop iniciado (intervalo={settings.DISPATCHER_INTERVAL_SECONDS}s)"
         )
 
-        while True:
+        while not self._stop.requested:
             self._next_cycle_at = datetime.now(timezone.utc) + timedelta(
                 seconds=settings.DISPATCHER_INTERVAL_SECONDS
             )
 
-            await asyncio.sleep(settings.DISPATCHER_INTERVAL_SECONDS)
+            if await self._stop.sleep(settings.DISPATCHER_INTERVAL_SECONDS):
+                break
 
             try:
                 await self.run_cycle()
@@ -313,8 +316,14 @@ class Dispatcher:
                 self._consecutive_errors += 1
                 self._check_circuit_breaker()
 
+    async def shutdown(self):
+        """Para entre dois envios: o ciclo em andamento termina (com limite) antes do cancelamento."""
+        await graceful_stop(self._loop_task, self._stop, "Dispatcher")
+        self._loop_task = None
+        self._next_cycle_at = None
+
     def stop(self):
-        """Para o loop de background."""
+        """Cancela o loop de background na hora (sem esperar o ciclo)."""
         if self._loop_task and not self._loop_task.done():
             self._loop_task.cancel()
             logger.info("Dispatcher loop cancelado")
@@ -815,7 +824,7 @@ class Dispatcher:
 
             any_window_open = False
             for entry in pending:
-                if self._paused or self._circuit_open:
+                if self._paused or self._circuit_open or self._stop.requested:
                     break
 
                 company = self.db.get(Company, entry.company_id)
@@ -836,7 +845,8 @@ class Dispatcher:
                     settings.SEND_DELAY_MAX_MS / 1000,
                 )
                 logger.debug(f"Delay: {delay:.1f}s")
-                await asyncio.sleep(delay)
+                if await self._stop.sleep(delay):
+                    break
 
             if pending and not any_window_open:
                 logger.info("Fora da janela de envio de todos os paises da fila — skip envio")
