@@ -1,28 +1,30 @@
+# Alvos de coleta automatica (rodizio feito pelo CollectionTracker do dispatcher).
+# O pais vem da cidade (seed_geography.py); o termo de busca vem de category_terms.yaml.
 targets:
-  - category_slug: barbearia
-    city_name: Cabo Frio
-    max_results: 20
+  # Portugal
+  - {category_slug: barbearia, city_name: Lisboa, max_results: 20}
+  - {category_slug: salao-de-beleza, city_name: Lisboa, max_results: 20}
+  - {category_slug: restaurante, city_name: Porto, max_results: 20}
+  - {category_slug: clinica, city_name: Porto, max_results: 20}
 
-  - category_slug: barbearia
-    city_name: Buzios
-    max_results: 20
+  # Belgica (Bruxelas)
+  - {category_slug: barbearia, city_name: Bruxelles, max_results: 20}
+  - {category_slug: salao-de-beleza, city_name: Ixelles, max_results: 20}
+  - {category_slug: restaurante, city_name: Saint-Gilles, max_results: 20}
 
-  - category_slug: barbearia
-    city_name: Arraial do Cabo
-    max_results: 20
+  # Franca
+  - {category_slug: barbearia, city_name: Paris, max_results: 20}
+  - {category_slug: salao-de-beleza, city_name: Lyon, max_results: 20}
+  - {category_slug: clinica, city_name: Bordeaux, max_results: 20}
 
-  - category_slug: barbearia
-    city_name: Saquarema
-    max_results: 20
+  # Holanda
+  - {category_slug: barbearia, city_name: Amsterdam, max_results: 20}
+  - {category_slug: salao-de-beleza, city_name: Rotterdam, max_results: 20}
+  - {category_slug: restaurante, city_name: Utrecht, max_results: 20}
 
-  - category_slug: barbearia
-    city_name: Marica
-    max_results: 20
-
-  - category_slug: barbearia
-    city_name: São Pedro da Aldeia
-    max_results: 20
-
-  - category_slug: barbearia
-    city_name: Iguaba Grande
-    max_results: 20
+  # Brasil (piloto anterior, WhatsApp). Descomente para voltar a coletar.
+  # - {category_slug: barbearia, city_name: Cabo Frio, max_results: 20}
+  # - {category_slug: barbearia, city_name: Arraial do Cabo, max_results: 20}
+  # - {category_slug: barbearia, city_name: Saquarema, max_results: 20}
+  # - {category_slug: barbearia, city_name: São Pedro da Aldeia, max_results: 20}
+  # - {category_slug: barbearia, city_name: Iguaba Grande, max_results: 20}

@@ -1,4 +1,6 @@
+import asyncio
 import re
+
 import httpx
 from app.core.config import settings
 
@@ -38,14 +40,24 @@ class LLMClient:
             "temperature": temperature,
         }
 
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            data = resp.json()
+        data = await self._post_with_retry(headers, payload)
 
         raw = data["choices"][0]["message"]["content"].strip()
         return self._strip_thinking(raw)
+
+    RETRY_STATUS = {429, 500, 502, 503, 504}
+    MAX_ATTEMPTS = 4
+
+    async def _post_with_retry(self, headers: dict, payload: dict) -> dict:
+        """Groq free tier devolve 429 com frequencia: espera (Retry-After ou backoff) e tenta de novo."""
+        delay = 2.0
+        async with httpx.AsyncClient(timeout=60) as client:
+            for attempt in range(1, self.MAX_ATTEMPTS + 1):
+                resp = await client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
+                if resp.status_code not in self.RETRY_STATUS or attempt == self.MAX_ATTEMPTS:
+                    resp.raise_for_status()
+                    return resp.json()
+                retry_after = resp.headers.get("retry-after")
+                wait = float(retry_after) if retry_after and retry_after.replace(".", "", 1).isdigit() else delay
+                await asyncio.sleep(min(wait, 60))
+                delay *= 2

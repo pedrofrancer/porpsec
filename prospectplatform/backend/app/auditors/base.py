@@ -28,6 +28,13 @@ class AuditResult:
     google_business_complete: bool | None = None
     whatsapp_catalog_link: bool | None = None
     whatsapp_responds_badge: bool | None = None
+    site_lang: str | None = None
+    emails_found: list[str] = field(default_factory=list)
+    legal_entity_signal: str | None = None
+    logo_url: str | None = None
+    dominant_colors: list[str] = field(default_factory=list)
+    og_image_url: str | None = None
+    about_snippet: str | None = None
     raw_data: dict = field(default_factory=dict)
 
 
