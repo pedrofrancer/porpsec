@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from contextlib import asynccontextmanager
 
+from app.core import keep_awake
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.migrations import ensure_schema
@@ -47,6 +48,8 @@ def get_reply_listener():
 async def lifespan(app: FastAPI):
     setup_logging()
     ensure_schema()
+    if settings.KEEP_AWAKE:
+        keep_awake.enable()
 
     dispatcher = get_dispatcher()
     db = SessionLocal()
@@ -65,6 +68,7 @@ async def lifespan(app: FastAPI):
 
     preview_worker.stop()
     reply_listener.stop()
+    keep_awake.disable()
     dispatcher.stop()
     if hasattr(db, 'close'):
         db.close()
