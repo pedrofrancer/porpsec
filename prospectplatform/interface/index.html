@@ -245,8 +245,23 @@
         let cities = [];
         let categories = [];
 
+        function apiToken() {
+            try { return localStorage.getItem('pp_token') || ''; } catch (e) { return ''; }
+        }
+
+        function saveToken(token) {
+            try { localStorage.setItem('pp_token', token); } catch (e) {}
+            // Cookie para o iframe da previa, que nao consegue mandar cabecalho.
+            document.cookie = `pp_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
+        }
+
         async function api(path, opts = {}) {
-            const res = await fetch(API + path, opts);
+            const headers = Object.assign({}, opts.headers || {}, { 'X-API-Token': apiToken() });
+            const res = await fetch(API + path, Object.assign({}, opts, { headers }));
+            if (res.status === 401) {
+                const token = prompt('Token de acesso (API_TOKEN do backend/.env):');
+                if (token) { saveToken(token); return api(path, opts); }
+            }
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
                 throw new Error(err.detail || 'Erro');
