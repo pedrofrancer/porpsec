@@ -59,6 +59,9 @@ class Settings(BaseSettings):
     # Fotos ilustrativas gratis quando a empresa nao tem fotos proprias (https://www.pexels.com/api/)
     PEXELS_API_KEY: str = ""
 
+    # Windows: impede a suspensao automatica enquanto o servidor roda.
+    KEEP_AWAKE: bool = True
+
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
