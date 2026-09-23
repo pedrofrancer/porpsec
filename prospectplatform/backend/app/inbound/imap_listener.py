@@ -10,6 +10,7 @@ import imaplib
 import logging
 from datetime import datetime, timedelta, timezone
 
+from app.core.background import StopSignal, graceful_stop
 from app.core.config import settings
 from app.inbound.email_parser import MSGID_RE, parse_email
 from app.models.inbound import InboundReply
@@ -24,6 +25,7 @@ class ImapReplyListener:
         # handler_factory() -> (ReplyEventHandler, db_session); a sessao e fechada a cada poll.
         self.handler_factory = handler_factory
         self._task: asyncio.Task | None = None
+        self._stop = StopSignal()
         self.last_poll_at: datetime | None = None
         self.last_error: str | None = None
         self._not_ours: set[str] = set()  # e-mails da caixa que nao sao resposta a outreach
@@ -82,7 +84,7 @@ class ImapReplyListener:
             logger.info("IMAP nao configurado (.env) — leitura de respostas desligada")
             return
         logger.info(f"Leitura de respostas por IMAP a cada {settings.IMAP_POLL_SECONDS}s")
-        while True:
+        while not self._stop.requested:
             try:
                 count = await asyncio.to_thread(self.poll_once)
                 self.last_error = None
@@ -91,10 +93,15 @@ class ImapReplyListener:
             except Exception as e:
                 self.last_error = str(e)
                 logger.error(f"Falha na leitura IMAP: {e}")
-            await asyncio.sleep(settings.IMAP_POLL_SECONDS)
+            if await self._stop.sleep(settings.IMAP_POLL_SECONDS):
+                break
 
     def start(self):
         self._task = asyncio.create_task(self.run_loop())
+
+    async def shutdown(self):
+        await graceful_stop(self._task, self._stop, "Leitura IMAP")
+        self._task = None
 
     def stop(self):
         if self._task and not self._task.done():
