@@ -245,8 +245,23 @@
         let cities = [];
         let categories = [];
 
+        function apiToken() {
+            try { return localStorage.getItem('pp_token') || ''; } catch (e) { return ''; }
+        }
+
+        function saveToken(token) {
+            try { localStorage.setItem('pp_token', token); } catch (e) {}
+            // Cookie para o iframe da previa, que nao consegue mandar cabecalho.
+            document.cookie = `pp_token=${encodeURIComponent(token)}; path=/; SameSite=Strict`;
+        }
+
         async function api(path, opts = {}) {
-            const res = await fetch(API + path, opts);
+            const headers = Object.assign({}, opts.headers || {}, { 'X-API-Token': apiToken() });
+            const res = await fetch(API + path, Object.assign({}, opts, { headers }));
+            if (res.status === 401) {
+                const token = prompt('Token de acesso (API_TOKEN do backend/.env):');
+                if (token) { saveToken(token); return api(path, opts); }
+            }
             if (!res.ok) {
                 const err = await res.json().catch(() => ({ detail: 'Erro desconhecido' }));
                 throw new Error(err.detail || 'Erro');
@@ -344,9 +359,9 @@
             const tbody = document.getElementById('companiesTable');
             tbody.innerHTML = data.items.map(c => `
                 <tr>
-                    <td><strong>${c.name}</strong></td>
-                    <td>${c.city_name || c.city_id}</td>
-                    <td>${c.category_name || c.category_id}</td>
+                    <td><strong>${esc(c.name)}</strong></td>
+                    <td>${esc(c.city_name || c.city_id)}</td>
+                    <td>${esc(c.category_name || c.category_id)}</td>
                     <td>${esc(c.email || c.phone || '-')}</td>
                     <td>${c.google_rating ? `<span class="score ${scoreClass(c.google_rating * 20)}">${c.google_rating}</span>` : '<span style="color:#64748b">-</span>'}</td>
                     <td>
@@ -379,15 +394,15 @@
                 } catch(e) {}
 
                 document.getElementById('modalContent').innerHTML = `
-                    <h2>${c.name}</h2>
+                    <h2>${esc(c.name)}</h2>
                     <div class="diag-section">
                         <div class="diag-row"><span class="field-label">Cidade</span><span>${c.city_name || c.city_id}</span></div>
                         <div class="diag-row"><span class="field-label">Categoria</span><span>${c.category_name || c.category_id}</span></div>
-                        <div class="diag-row"><span class="field-label">Telefone</span><span>${c.phone || 'Nao informado'}</span></div>
+                        <div class="diag-row"><span class="field-label">Telefone</span><span>${esc(c.phone || 'Nao informado')}</span></div>
                         <div class="diag-row"><span class="field-label">E-mail</span><span>${esc(c.email || 'Nao encontrado')}</span></div>
                         <div class="diag-row"><span class="field-label">Canal</span><span>${c.preferred_channel || '-'}</span></div>
-                        <div class="diag-row"><span class="field-label">Website</span><span>${c.website || 'Nao possui'}</span></div>
-                        <div class="diag-row"><span class="field-label">Instagram</span><span>${c.instagram || 'Nao informado'}</span></div>
+                        <div class="diag-row"><span class="field-label">Website</span><span>${esc(c.website || 'Nao possui')}</span></div>
+                        <div class="diag-row"><span class="field-label">Instagram</span><span>${esc(c.instagram || 'Nao informado')}</span></div>
                         <div class="diag-row"><span class="field-label">Nota Google</span><span>${c.google_rating || '-'}</span></div>
                         <div class="diag-row"><span class="field-label">Avaliacoes</span><span>${c.google_review_count || '-'}</span></div>
                         <div class="diag-row"><span class="field-label">Fonte</span><span>${c.source}</span></div>
@@ -413,11 +428,11 @@
 
             html += `<div class="diag-section"><h4>Score Digital: <span class="score ${scoreClass(dp.digital_score)}">${dp.digital_score}/100</span></h4>`;
             if (dp.website.exists) {
-                html += `<div class="diag-row"><span>Site</span><span class="${dp.website.issues.length ? 'bad' : 'ok'}">${dp.website.issues.length ? dp.website.issues.join(', ') : 'OK'}</span></div>`;
+                html += `<div class="diag-row"><span>Site</span><span class="${dp.website.issues.length ? 'bad' : 'ok'}">${dp.website.issues.length ? esc(dp.website.issues.join(', ')) : 'OK'}</span></div>`;
             } else {
                 html += `<div class="diag-row"><span>Site</span><span class="bad">Nao possui</span></div>`;
             }
-            html += `<div class="diag-row"><span>Instagram</span><span class="${dp.instagram.issues.length ? 'warn' : 'ok'}">${dp.instagram.exists ? (dp.instagram.issues.length ? dp.instagram.issues.join(', ') : 'Ativo') : 'Nao informado'}</span></div>`;
+            html += `<div class="diag-row"><span>Instagram</span><span class="${dp.instagram.issues.length ? 'warn' : 'ok'}">${dp.instagram.exists ? (dp.instagram.issues.length ? esc(dp.instagram.issues.join(', ')) : 'Ativo') : 'Nao informado'}</span></div>`;
             html += `<div class="diag-row"><span>Google Business</span><span class="${dp.google_business.exists ? 'ok' : 'bad'}">${dp.google_business.exists ? 'Completo' : 'Incompleto'}</span></div>`;
             html += `</div>`;
 
@@ -431,7 +446,7 @@
                 html += `<div class="diag-section"><h4>Recomendacoes</h4>`;
                 d.recommendations.forEach(r => {
                     const cls = r.priority === 'alta' ? 'badge-alta' : r.priority === 'media' ? 'badge-media' : 'badge-baixa';
-                    html += `<div style="margin:0.4rem 0"><span class="badge ${cls}">${r.priority}</span> <strong>${r.solution}</strong><br><span style="font-size:0.8rem;color:#94a3b8">${r.evidence}</span></div>`;
+                    html += `<div style="margin:0.4rem 0"><span class="badge ${cls}">${r.priority}</span> <strong>${esc(r.solution)}</strong><br><span style="font-size:0.8rem;color:#94a3b8">${esc(r.evidence)}</span></div>`;
                 });
                 html += `</div>`;
             }
@@ -455,9 +470,9 @@
             try {
                 const data = await api(`/companies/${id}/outreach`);
                 document.getElementById('modalContent').innerHTML = `
-                    <h2>Abordagem - ${data.company_name}</h2>
-                    <p><span class="field-label">Telefone:</span> ${data.phone || 'Nao informado'}</p>
-                    <div class="outreach-box">${data.message}</div>
+                    <h2>Abordagem - ${esc(data.company_name)}</h2>
+                    <p><span class="field-label">Telefone:</span> ${esc(data.phone || 'Nao informado')}</p>
+                    <div class="outreach-box">${esc(data.message)}</div>
                     <div class="modal-actions">
                         <button class="btn btn-success" onclick="addToQueue(${id}); closeModal()">Adicionar a Fila</button>
                         <button class="btn" onclick="closeModal()">Fechar</button>
@@ -513,8 +528,8 @@
                 tbody.innerHTML = entries.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:#64748b">Nenhum opt-out registrado</td></tr>' :
                     entries.map(e => `
                         <tr>
-                            <td>${e.contact_identifier}</td>
-                            <td>${e.reason || '-'}</td>
+                            <td>${esc(e.contact_identifier)}</td>
+                            <td>${esc(e.reason || '-')}</td>
                             <td>${e.source || '-'}</td>
                             <td>${formatDate(e.created_at)}</td>
                         </tr>
@@ -653,12 +668,12 @@
                     }[m.status] || 'badge-media';
                     return `<tr>
                         <td>${m.id}</td>
-                        <td>${m.company_name || m.company_id}</td>
+                        <td>${esc(m.company_name || m.company_id)}</td>
                         <td><span class="badge ${statusBadge}">${m.status}</span></td>
-                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${m.message_text}">${m.message_text}</td>
+                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.message_text)}">${esc(m.message_text)}</td>
                         <td>${formatDate(m.generated_at)}</td>
                         <td>${m.sent_at ? formatDate(m.sent_at) : '-'}</td>
-                        <td style="color:#f87171;font-size:0.75rem">${m.last_error || ''}</td>
+                        <td style="color:#f87171;font-size:0.75rem">${esc(m.last_error || '')}</td>
                     </tr>`;
                 }).join('');
             } catch (e) {
