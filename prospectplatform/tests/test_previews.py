@@ -149,3 +149,145 @@ def test_fallback_followup_has_link_and_price():
 def test_validate_followup_rejects(body, err):
     ok, error = validate_followup(body, URL)
     assert not ok and err in error
+
+
+# --- servico (banco em memoria) ---
+
+@pytest.fixture
+def db():
+    engine = create_engine("sqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    s = sessionmaker(bind=engine)()
+    s.add_all([Country(id=1, name="France", code="FR"), State(id=1, name="IDF", code="FR-IDF", country_id=1),
+               City(id=1, name="Paris", state_id=1), Category(id=1, name="Barbearia", slug="barbearia")])
+    s.commit()
+    yield s
+    s.close()
+
+
+@pytest.fixture
+def replied(db):
+    c = Company(name="Barbier Lumière", city_id=1, category_id=1, website="https://barbier-lumiere.fr",
+                email="contact@barbier-lumiere.fr", preferred_channel="email", source="test",
+                collected_at=datetime.now(timezone.utc))
+    db.add(c)
+    db.commit()
+    db.add(Audit(company_id=c.id, digital_score=30, site_lang="fr", audited_at=datetime.now(timezone.utc)))
+    out = Message(company_id=c.id, opportunity_ids="[]", message_text="x", channel="email", subject="le site",
+                  language="fr-FR", status="enviado", thread_id="<out@gmail.com>",
+                  generated_at=datetime.now(timezone.utc), sent_at=datetime.now(timezone.utc))
+    db.add_all([out, ProspectingQueue(company_id=c.id, status="RESPONDEU")])
+    db.commit()
+    reply = InboundReply(company_id=c.id, message_id=out.id, channel="email", external_id="<r1@barbier-lumiere.fr>",
+                         from_address="contact@barbier-lumiere.fr", raw_content="C'est combien ?", kind="reply",
+                         is_first_reply=True, received_at=datetime.now(timezone.utc))
+    db.add(reply)
+    db.commit()
+    return c, out, reply
+
+
+@pytest.fixture
+def fakes(tmp_path):
+    publisher = PagesPublisher(root=tmp_path)
+    publisher.deploy = MagicMock(return_value="ok")
+    publisher.public_url = lambda slug: f"https://studio.pages.dev/p/{slug}/"
+    sender = SimpleNamespace(is_configured=AsyncMock(return_value=True),
+                             send=AsyncMock(return_value={"message_id": "<fu@gmail.com>"}))
+    return publisher, sender
+
+
+@pytest.fixture
+def offline():
+    with patch("app.branding.brand_kit.pexels_photos", return_value=[]), \
+         patch("app.llm.followup_agent.LLMClient") as llm:
+        llm.return_value.is_configured = False
+        yield
+
+
+def test_enqueue_is_once_per_company(db, replied):
+    company, out, reply = replied
+    assert enqueue_for_reply(db, reply, company, out) is not None
+    assert enqueue_for_reply(db, reply, company, out) is None
+    assert db.query(SitePreview).count() == 1
+
+
+@pytest.mark.asyncio
+async def test_draft_then_approve_sends_in_thread(db, replied, fakes, offline):
+    company, out, reply = replied
+    publisher, sender = fakes
+    preview = enqueue_for_reply(db, reply, company, out)
+    service = PreviewService(db, publisher=publisher, sender=sender)
+
+    await service.process_pending()
+    assert preview.status == "rascunho"
+    assert preview.followup_subject == "Re: le site"
+    assert preview.preview_url in preview.followup_text
+    assert (publisher.page_dir(preview.slug) / "index.html").exists()
+    publisher.deploy.assert_not_called()   # rascunho nao publica
+    sender.send.assert_not_called()
+
+    await service.approve(preview)
+    publisher.deploy.assert_called_once()
+    to, subject, body = sender.send.call_args.args
+    assert to == "contact@barbier-lumiere.fr" and subject == "Re: le site"
+    assert sender.send.call_args.kwargs == {"in_reply_to": "<r1@barbier-lumiere.fr>", "references": "<out@gmail.com>"}
+    assert "STOP" in body
+    assert preview.status == "enviado" and preview.expires_at is not None
+    fu = db.get(Message, preview.followup_message_id)
+    assert fu.message_type == "template_followup" and fu.thread_id == "<fu@gmail.com>"
+    assert db.query(ProspectingQueue).one().status == "PREVIA_ENVIADA"
+    db.refresh(reply)
+    assert reply.resulted_in_template
+
+
+@pytest.mark.asyncio
+async def test_auto_send_flag(db, replied, fakes, offline):
+    company, out, reply = replied
+    publisher, sender = fakes
+    preview = enqueue_for_reply(db, reply, company, out)
+    with patch("app.branding.preview_service.settings") as s:
+        s.PREVIEW_AUTO_SEND, s.PREVIEW_TTL_DAYS = True, 30
+        s.SENDER_BRAND = s.SENDER_POSTAL_ADDRESS = s.SENDER_CONTACT_NAME = s.SENDER_WEBSITE = ""
+        s.OFFER_PRICE_RANGE, s.LLM_MODEL = "", "x"
+        await PreviewService(db, publisher=publisher, sender=sender).process_pending()
+    assert preview.status == "enviado"
+
+
+@pytest.mark.asyncio
+async def test_approve_blocked_by_opt_out(db, replied, fakes, offline):
+    company, out, reply = replied
+    publisher, sender = fakes
+    preview = enqueue_for_reply(db, reply, company, out)
+    service = PreviewService(db, publisher=publisher, sender=sender)
+    await service.build_draft(preview)
+    db.add(OptOut(contact_identifier="contact@barbier-lumiere.fr"))
+    db.commit()
+    with pytest.raises(PreviewError, match="opt-out"):
+        await service.approve(preview)
+    sender.send.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_approve_rejects_edit_without_link(db, replied, fakes, offline):
+    company, out, reply = replied
+    publisher, sender = fakes
+    preview = enqueue_for_reply(db, reply, company, out)
+    service = PreviewService(db, publisher=publisher, sender=sender)
+    await service.build_draft(preview)
+    with pytest.raises(PreviewError, match="link"):
+        await service.approve(preview, text="Bonjour, voici le site.")
+
+
+def test_expire_old_removes_folder(db, replied, fakes):
+    company, out, reply = replied
+    publisher, _ = fakes
+    preview = SitePreview(company_id=company.id, slug="old-1", status="enviado",
+                          expires_at=datetime.now(timezone.utc) - timedelta(days=1))
+    db.add(preview)
+    db.commit()
+    publisher.write("old-1", "<html></html>")
+    with patch("app.branding.publisher.settings") as s:
+        s.pages_configured = True
+        assert PreviewService(db, publisher=publisher).expire_old() == 1
+    assert preview.status == "expirado" and not publisher.page_dir("old-1").exists()
+    publisher.deploy.assert_called_once()
