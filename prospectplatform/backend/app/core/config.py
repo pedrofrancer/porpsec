@@ -30,6 +30,9 @@ class Settings(BaseSettings):
 
     GOOGLE_MAPS_TIMEOUT: int = 60000
 
+    # Token do painel/API. Vazio = so aceita acesso do proprio PC (127.0.0.1).
+    API_TOKEN: str = ""
+
     # E-mail (Gmail: SMTP para envio, IMAP para ler respostas; senha de app com 2FA)
     SMTP_HOST: str = "smtp.gmail.com"
     SMTP_PORT: int = 465
