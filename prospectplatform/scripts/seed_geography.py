@@ -33,7 +33,64 @@ GEOGRAPHY_DATA = {
                 }
             }
         }
-    }
+    },
+    "Portugal": {
+        "code": "PT",
+        "regions": {
+            "Portugal Continental": {
+                "states": {
+                    "Lisboa": {"code": "PT-11", "cities": {"Lisboa": ["Lisboa", "Cascais", "Sintra", "Oeiras"]}},
+                    "Porto": {"code": "PT-13", "cities": {"Porto": ["Porto", "Vila Nova de Gaia", "Matosinhos"]}},
+                    "Faro": {"code": "PT-08", "cities": {"Algarve": ["Faro", "Lagos", "Albufeira"]}},
+                }
+            }
+        }
+    },
+    "Belgique": {
+        "code": "BE",
+        "regions": {
+            "Bruxelles-Capitale": {
+                "states": {
+                    "Bruxelles": {"code": "BE-BRU", "cities": {"Bruxelles": [
+                        "Bruxelles", "Ixelles", "Etterbeek", "Uccle", "Saint-Gilles",
+                        "Schaerbeek", "Woluwe-Saint-Lambert", "Anderlecht",
+                    ]}},
+                }
+            }
+        }
+    },
+    "France": {
+        "code": "FR",
+        "regions": {
+            "France metropolitaine": {
+                "states": {
+                    "Ile-de-France": {"code": "FR-IDF", "cities": {"Ile-de-France": ["Paris", "Boulogne-Billancourt", "Versailles"]}},
+                    "Auvergne-Rhone-Alpes": {"code": "FR-ARA", "cities": {"Rhone": ["Lyon", "Villeurbanne"]}},
+                    "Hauts-de-France": {"code": "FR-HDF", "cities": {"Nord": ["Lille"]}},
+                    "Provence-Alpes-Cote d'Azur": {"code": "FR-PAC", "cities": {"PACA": ["Marseille", "Nice"]}},
+                    "Occitanie": {"code": "FR-OCC", "cities": {"Occitanie": ["Toulouse", "Montpellier"]}},
+                    "Nouvelle-Aquitaine": {"code": "FR-NAQ", "cities": {"Gironde": ["Bordeaux"]}},
+                }
+            }
+        }
+    },
+    "Nederland": {
+        "code": "NL",
+        "regions": {
+            "Randstad": {
+                "states": {
+                    "Noord-Holland": {"code": "NL-NH", "cities": {"Noord-Holland": ["Amsterdam", "Haarlem"]}},
+                    "Zuid-Holland": {"code": "NL-ZH", "cities": {"Zuid-Holland": ["Rotterdam", "Den Haag", "Leiden", "Delft"]}},
+                    "Utrecht": {"code": "NL-UT", "cities": {"Utrecht": ["Utrecht"]}},
+                }
+            },
+            "Zuid-Nederland": {
+                "states": {
+                    "Noord-Brabant": {"code": "NL-NB", "cities": {"Noord-Brabant": ["Eindhoven"]}},
+                }
+            }
+        }
+    },
 }
 
 

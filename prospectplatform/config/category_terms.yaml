@@ -1,0 +1,53 @@
+# Termo de busca no Google Maps por categoria. Chave = locale exato ou prefixo de idioma.
+# Sem termo (ex.: pt-BR) o nome da categoria e usado.
+# O slug da categoria nao serve como texto de busca fora do portugues.
+
+terms:
+  barbearia:
+    pt-PT: barbearia
+    fr: barbier
+    nl: kapper heren
+    es: barberia
+    en: barber shop
+  salao-de-beleza:
+    pt-PT: salao de beleza
+    fr: salon de coiffure
+    nl: kapsalon
+    es: peluqueria
+    en: hair salon
+  clinica:
+    pt-PT: clinica estetica
+    fr: institut de beaute
+    nl: schoonheidssalon
+    es: clinica estetica
+    en: beauty clinic
+  restaurante:
+    pt-PT: restaurante
+    fr: restaurant
+    nl: restaurant
+    es: restaurante
+    en: restaurant
+  academia:
+    pt-PT: ginasio
+    fr: salle de sport
+    nl: sportschool
+    es: gimnasio
+    en: gym
+  pousada:
+    pt-PT: alojamento local
+    fr: chambre d'hotes
+    nl: bed and breakfast
+    es: hostal
+    en: guest house
+  imobiliaria:
+    pt-PT: imobiliaria
+    fr: agence immobiliere
+    nl: makelaar
+    es: inmobiliaria
+    en: real estate agency
+  oficina:
+    pt-PT: oficina automovel
+    fr: garage automobile
+    nl: autogarage
+    es: taller mecanico
+    en: car repair
