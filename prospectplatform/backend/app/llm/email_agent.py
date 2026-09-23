@@ -20,6 +20,7 @@ HOW IT SHOULD READ:
 - First person singular ("je" / "ik" / "eu"). Never "we", "our team", "our agency".
 - Start with a simple greeting line, then say plainly how you came across them (you were looking for {term} in {city}).
 - Tell ONE concrete thing from the audit data, the way you experienced it ("I opened your site on my phone and..."). One problem only. Never a list.
+- If the data says the business has NO website, the problem is that you searched and found none. Never say you opened, visited or tried their site.
 - One short sentence admitting you only looked from the outside, so it may already be planned on their side.
 - Offer to prepare a preview of a new version with their own name and colours, so they can see it. Say once, simply, that it commits them to nothing. {price_rule}
 - End with one short, easy question (e.g. "Shall I send it?").
@@ -106,10 +107,15 @@ def _sender_first_name() -> str:
     return contact.split()[0] if contact else "a freelance web developer"
 
 
+# O termo de busca do Maps nem sempre serve na frase ("kapper heren" busca bem e le mal).
+_PROSE_TERMS = {("barbearia", "nl"): "herenkapper"}
+
+
 def _category_term(company, language: str) -> str:
     if not company.category:
         return ""
-    return search_term(company.category.slug, company.category.name, language)
+    prose = _PROSE_TERMS.get((company.category.slug, lang_key(language)))
+    return prose or search_term(company.category.slug, company.category.name, language)
 
 
 async def generate_outreach_email(company, audit, opportunities, diagnosis, language: str) -> EmailDraft | None:

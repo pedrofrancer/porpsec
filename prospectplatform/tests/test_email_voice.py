@@ -81,7 +81,7 @@ async def test_prompt_carries_voice_example_and_sender():
          patch.object(email_agent.settings, "OFFER_PRICE_RANGE", ""):
         await email_agent.generate_outreach_email(company(), audit(), [], None, "nl-NL")
     system = client.chat.call_args.args[0]
-    assert "You are Pedro" in system and "kapper heren" in system and "Paris" in system
+    assert "You are Pedro" in system and "herenkapper" in system and "Paris" in system
     assert "van buitenaf" in system          # exemplo holandes como ancora de tom
     assert "Do NOT sign" in system
 
@@ -91,3 +91,19 @@ def test_fallback_followup_is_valid_and_honest(language):
     text = fallback_followup("Barbier Lumière", language, URL, True, "490 EUR")
     assert validate_followup(text, URL) == (True, None)
     assert text.rstrip().endswith("?") and "490 EUR" in text
+
+
+def test_termo_da_categoria_na_frase_nao_e_o_termo_de_busca():
+    assert email_agent._category_term(company(), "nl-NL") == "herenkapper"
+    assert email_agent._category_term(company(), "fr-FR") == "barbier"
+
+
+def test_prompt_proibe_dizer_que_abriu_site_que_nao_existe():
+    assert "NO website" in email_agent.SYSTEM_PROMPT
+    assert "Never say you opened" in email_agent.SYSTEM_PROMPT
+
+
+def test_rodape_frances_faz_elisao_do_nome():
+    from app.i18n import legal_footer
+    assert "l'adresse d'Atelier Nord" in legal_footer("fr-FR", "B", "A", "Atelier Nord")
+    assert "l'adresse de Barbier Lumière" in legal_footer("fr-FR", "B", "A", "Barbier Lumière")
