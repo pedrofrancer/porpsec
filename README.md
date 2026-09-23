@@ -108,10 +108,3 @@ Cento e sessenta testes passam com dublês; nenhum deles ainda falou com o Gmail
 Etapa 15 fechar, o pipeline europeu é uma hipótese bem formalizada, não um resultado.
 
 Documentos de produto: [PRD](prospectplatform/prd.md) e [TechSpec](prospectplatform/techspec.md).
-
-## Autor
-
-Pedro Francisco. Engenheiro de software com foco em segurança da informação, pentester,
-matemático, PhD em ciência da computação pela USP.
-
-Contato: pedroradical06@gmail.com
