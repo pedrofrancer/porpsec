@@ -30,6 +30,24 @@ class Settings(BaseSettings):
 
     GOOGLE_MAPS_TIMEOUT: int = 60000
 
+    # E-mail (Gmail: SMTP para envio, IMAP para ler respostas; senha de app com 2FA)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 465
+    IMAP_HOST: str = "imap.gmail.com"
+    IMAP_PORT: int = 993
+    EMAIL_ADDRESS: str = ""
+    EMAIL_APP_PASSWORD: str = ""
+    EMAIL_DAILY_LIMIT: int = 20
+    EMAIL_HOURLY_LIMIT: int = 6
+    EMAIL_WARMUP_CURVE: str = "5,8,10,12,15,18,20"
+
+    # Identificacao do remetente (rodape legal obrigatorio na UE)
+    SENDER_BRAND: str = ""
+    SENDER_CONTACT_NAME: str = ""
+    SENDER_POSTAL_ADDRESS: str = ""
+    SENDER_WEBSITE: str = ""
+    OFFER_PRICE_RANGE: str = ""
+
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
@@ -42,6 +60,14 @@ class Settings(BaseSettings):
     @property
     def warmup_curve_list(self) -> list[int]:
         return [int(x.strip()) for x in self.WARMUP_CURVE.split(",")]
+
+    @property
+    def email_warmup_curve_list(self) -> list[int]:
+        return [int(x.strip()) for x in self.EMAIL_WARMUP_CURVE.split(",")]
+
+    @property
+    def email_configured(self) -> bool:
+        return bool(self.EMAIL_ADDRESS and self.EMAIL_APP_PASSWORD and self.SENDER_BRAND and self.SENDER_POSTAL_ADDRESS)
 
 
 settings = Settings()
