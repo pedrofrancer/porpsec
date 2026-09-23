@@ -46,6 +46,7 @@ O Node.js precisa estar instalado: a publicação usa `npx wrangler`.
 | `OFFER_PRICE_RANGE` | Ex.: `490 EUR`. Vazio = não fala de preço |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PAGES_PROJECT` | https://dash.cloudflare.com/profile/api-tokens, permissão *Cloudflare Pages: Edit* |
 | `PEXELS_API_KEY` (opcional) | https://www.pexels.com/api/ |
+| `API_TOKEN` (opcional) | Qualquer segredo longo. Vazio = só o próprio PC acessa o painel. Obrigatório se expuser na rede ou por túnel |
 
 Sem e-mail configurado nada é enviado: as mensagens ficam aprovadas na fila, esperando.
 

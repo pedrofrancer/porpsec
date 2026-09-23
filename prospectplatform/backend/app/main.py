@@ -7,6 +7,7 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from app.core import keep_awake
+from app.core.auth import TokenAuthMiddleware
 from app.core.config import settings
 from app.core.database import SessionLocal
 from app.core.migrations import ensure_schema
@@ -81,6 +82,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(TokenAuthMiddleware)
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 # Rascunhos das previas, para revisar antes de publicar (a versao publica fica no Cloudflare Pages).
