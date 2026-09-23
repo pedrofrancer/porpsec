@@ -84,6 +84,7 @@
             <button class="nav-btn" onclick="showPage('companies')">Empresas</button>
             <button class="nav-btn" onclick="showPage('queue')">Fila</button>
             <button class="nav-btn" onclick="showPage('envios')">Envios</button>
+            <button class="nav-btn" onclick="showPage('respostas')">Respostas</button>
             <button class="nav-btn" onclick="showPage('optout')">Opt-out</button>
         </div>
     </div>
@@ -134,7 +135,7 @@
                         <th>Nome</th>
                         <th>Cidade</th>
                         <th>Categoria</th>
-                        <th>Telefone</th>
+                        <th>Contato</th>
                         <th>Score</th>
                         <th>Acoes</th>
                     </tr>
@@ -180,6 +181,21 @@
                     </tr>
                 </thead>
                 <tbody id="optoutTable"></tbody>
+            </table>
+        </div>
+
+        <!-- RESPOSTAS E PREVIAS -->
+        <div class="page" id="page-respostas">
+            <div class="stats" id="replyStats"></div>
+            <h3 style="color:#38bdf8;margin:0 0 0.75rem">Prévias de site</h3>
+            <table>
+                <thead><tr><th>Empresa</th><th>Status</th><th>Resposta recebida</th><th>Gerada</th><th>Link público</th><th>Ações</th></tr></thead>
+                <tbody id="previewTable"></tbody>
+            </table>
+            <h3 style="color:#38bdf8;margin:1.5rem 0 0.75rem">Respostas recebidas</h3>
+            <table>
+                <thead><tr><th>Empresa</th><th>Tipo</th><th>De</th><th>Texto</th><th>Recebida</th></tr></thead>
+                <tbody id="replyTable"></tbody>
             </table>
         </div>
 
@@ -246,6 +262,10 @@
             setTimeout(() => t.style.display = 'none', 3000);
         }
 
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        }
+
         function scoreClass(score) {
             if (score >= 70) return 'score-high';
             if (score >= 40) return 'score-mid';
@@ -267,6 +287,7 @@
             if (name === 'companies') loadCompanies();
             if (name === 'dashboard') { loadStats(); loadDispatcherStatus(); }
             if (name === 'envios') { loadMsgStats(); loadMessages(); }
+            if (name === 'respostas') { loadPreviews(); loadReplies(); }
         }
 
         // --- DASHBOARD ---
@@ -326,7 +347,7 @@
                     <td><strong>${c.name}</strong></td>
                     <td>${c.city_name || c.city_id}</td>
                     <td>${c.category_name || c.category_id}</td>
-                    <td>${c.phone || '-'}</td>
+                    <td>${esc(c.email || c.phone || '-')}</td>
                     <td>${c.google_rating ? `<span class="score ${scoreClass(c.google_rating * 20)}">${c.google_rating}</span>` : '<span style="color:#64748b">-</span>'}</td>
                     <td>
                         <button class="btn btn-sm" onclick="viewCompany(${c.id})">Detalhes</button>
@@ -363,6 +384,8 @@
                         <div class="diag-row"><span class="field-label">Cidade</span><span>${c.city_name || c.city_id}</span></div>
                         <div class="diag-row"><span class="field-label">Categoria</span><span>${c.category_name || c.category_id}</span></div>
                         <div class="diag-row"><span class="field-label">Telefone</span><span>${c.phone || 'Nao informado'}</span></div>
+                        <div class="diag-row"><span class="field-label">E-mail</span><span>${esc(c.email || 'Nao encontrado')}</span></div>
+                        <div class="diag-row"><span class="field-label">Canal</span><span>${c.preferred_channel || '-'}</span></div>
                         <div class="diag-row"><span class="field-label">Website</span><span>${c.website || 'Nao possui'}</span></div>
                         <div class="diag-row"><span class="field-label">Instagram</span><span>${c.instagram || 'Nao informado'}</span></div>
                         <div class="diag-row"><span class="field-label">Nota Google</span><span>${c.google_rating || '-'}</span></div>
@@ -577,7 +600,8 @@
                 wh.innerHTML = `
                     <div class="stat-card"><div class="number" style="color:${statusColor};font-size:1.2rem">${statusText}</div><div class="label">Status</div></div>
                     <div class="stat-card"><div class="number">${s.warmup_day}</div><div class="label">Dia Warmup</div></div>
-                    <div class="stat-card"><div class="number">${s.warmup_max_today}</div><div class="label">Max Hoje</div></div>
+                    <div class="stat-card"><div class="number">${s.warmup_max_today}</div><div class="label">Max Hoje WhatsApp</div></div>
+                    <div class="stat-card"><div class="number">${s.email_warmup_max_today}</div><div class="label">Max Hoje E-mail (dia ${s.email_warmup_day})</div></div>
                     <div class="stat-card"><div class="number">${s.last_error ? s.last_error.substring(0, 20) : 'Nenhum'}</div><div class="label">Ultimo Erro</div></div>
                     <div class="stat-card"><div class="number">${s.started_at ? new Date(s.started_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Iniciado</div></div>
                     <div class="stat-card"><div class="number">${s.last_cycle_at ? new Date(s.last_cycle_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Ultimo Ciclo</div></div>
@@ -640,6 +664,94 @@
             } catch (e) {
                 showToast(e.message, true);
             }
+        }
+
+        // --- RESPOSTAS E PREVIAS ---
+        const PREVIEW_BADGE = { pendente: 'badge-media', rascunho: 'badge-media', publicado: 'badge-baixa',
+                                enviado: 'badge-baixa', erro: 'badge-alta', descartado: 'badge-alta', expirado: 'badge-alta' };
+        let previews = [];
+
+        async function loadPreviews() {
+            try {
+                previews = await api('/previews');
+                const count = st => previews.filter(p => p.status === st).length;
+                document.getElementById('replyStats').innerHTML = `
+                    <div class="stat-card"><div class="number">${count('rascunho')}</div><div class="label">Aguardando aprovação</div></div>
+                    <div class="stat-card"><div class="number">${count('pendente')}</div><div class="label">Gerando</div></div>
+                    <div class="stat-card"><div class="number">${count('enviado')}</div><div class="label">Prévias enviadas</div></div>
+                    <div class="stat-card"><div class="number">${count('erro')}</div><div class="label">Com erro</div></div>`;
+                document.getElementById('previewTable').innerHTML = previews.length === 0
+                    ? '<tr><td colspan="6" style="text-align:center;color:#64748b">Nenhuma prévia ainda. Elas nascem quando uma empresa responde.</td></tr>'
+                    : previews.map(p => `<tr>
+                        <td><strong>${esc(p.company_name)}</strong><br><span style="color:#64748b;font-size:0.75rem">${esc(p.language || '')} · ${esc(p.template_slug || '')}</span></td>
+                        <td><span class="badge ${PREVIEW_BADGE[p.status] || 'badge-media'}">${p.status}</span>${p.last_error ? `<br><span style="color:#f87171;font-size:0.7rem">${esc(p.last_error.substring(0, 80))}</span>` : ''}</td>
+                        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.reply_text)}">${esc(p.reply_text || '-')}</td>
+                        <td>${formatDate(p.generated_at)}</td>
+                        <td>${p.status === 'enviado' || p.status === 'publicado' ? `<a href="${esc(p.preview_url)}" target="_blank" style="color:#38bdf8">abrir</a>` : '-'}</td>
+                        <td>${['rascunho', 'publicado', 'erro'].includes(p.status) ? `<button class="btn btn-sm btn-success" onclick="openPreview(${p.id})">Revisar</button>` : ''}</td>
+                    </tr>`).join('');
+            } catch (e) { showToast(e.message, true); }
+        }
+
+        async function loadReplies() {
+            try {
+                const replies = await api('/replies?limit=100');
+                const kindBadge = { reply: 'badge-baixa', opt_out: 'badge-alta', bounce: 'badge-alta' };
+                document.getElementById('replyTable').innerHTML = replies.length === 0
+                    ? '<tr><td colspan="5" style="text-align:center;color:#64748b">Nenhuma resposta ainda</td></tr>'
+                    : replies.map(r => `<tr>
+                        <td>${esc(r.company_name || r.company_id)}</td>
+                        <td><span class="badge ${kindBadge[r.kind] || 'badge-media'}">${r.kind}${r.is_first_reply ? ' · 1ª' : ''}</span></td>
+                        <td>${esc(r.from_address || '-')}</td>
+                        <td style="max-width:360px;white-space:pre-wrap;font-size:0.8rem">${esc(r.raw_content.substring(0, 400))}</td>
+                        <td>${formatDate(r.received_at)}</td>
+                    </tr>`).join('');
+            } catch (e) { showToast(e.message, true); }
+        }
+
+        function openPreview(id) {
+            const p = previews.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('modalContent').innerHTML = `
+                <h2>Prévia · ${esc(p.company_name)}</h2>
+                <h3>O que a empresa respondeu</h3>
+                <div class="outreach-box">${esc(p.reply_text || '-')}</div>
+                <h3>Site gerado <a href="${esc(p.local_url)}" target="_blank" style="font-size:0.8rem;color:#94a3b8">(abrir em tela cheia)</a></h3>
+                <iframe src="${esc(p.local_url)}" style="width:100%;height:420px;border:1px solid #334155;border-radius:8px;background:#fff"></iframe>
+                <h3>Resposta que vai no mesmo thread</h3>
+                <input id="fuSubject" value="${esc(p.followup_subject || '')}" style="width:100%;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;margin-bottom:0.5rem">
+                <textarea id="fuText" rows="9" style="width:100%;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.6rem;border-radius:4px;font:inherit;font-size:0.85rem">${esc(p.followup_text || '')}</textarea>
+                <p style="font-size:0.75rem;color:#94a3b8">O link ${esc(p.preview_url || '')} precisa continuar no texto. O rodapé legal é anexado no envio.</p>
+                <div class="modal-actions">
+                    <button class="btn btn-danger" onclick="previewAction(${p.id}, 'discard')">Descartar</button>
+                    <button class="btn btn-outline" onclick="previewAction(${p.id}, 'regenerate')">Gerar de novo</button>
+                    <button class="btn btn-success" onclick="approvePreview(${p.id})">Publicar e enviar</button>
+                    <button class="btn" onclick="closeModal()">Fechar</button>
+                </div>`;
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        async function approvePreview(id) {
+            showToast('Publicando no Cloudflare Pages e enviando...');
+            try {
+                await api(`/previews/${id}/approve`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ followup_subject: document.getElementById('fuSubject').value,
+                                           followup_text: document.getElementById('fuText').value })
+                });
+                showToast('Prévia publicada e resposta enviada!');
+                closeModal();
+                loadPreviews();
+            } catch (e) { showToast(e.message, true); }
+        }
+
+        async function previewAction(id, action) {
+            try {
+                await api(`/previews/${id}/${action}`, { method: 'POST' });
+                showToast(action === 'discard' ? 'Prévia descartada' : 'Prévia gerada de novo');
+                closeModal();
+                loadPreviews();
+            } catch (e) { showToast(e.message, true); }
         }
     </script>
 </body>
