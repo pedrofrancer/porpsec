@@ -49,6 +49,14 @@ O Node.js precisa estar instalado: a publicação usa `npx wrangler`.
 
 Sem e-mail configurado nada é enviado: as mensagens ficam aprovadas na fila, esperando.
 
+Antes de ligar, confira cada serviço sem enviar nada:
+
+```powershell
+.venv\Scripts\python scriptserificar_config.py
+```
+
+Cada linha sai `OK`, `FALHA` ou `AVISO` com o que corrigir.
+
 ## Rodar
 
 ```powershell
