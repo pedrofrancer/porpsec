@@ -624,79 +624,29 @@ class Dispatcher:
 
         for company in eligible:
             try:
-                audit = self.db.query(Audit).filter(
-                    Audit.company_id == company.id
-                ).order_by(Audit.id.desc()).first()
+                audit, opportunities = await self._prepare_company(company)
 
-                if not audit:
-                    try:
-                        from app.auditors.website_auditor import WebsiteAuditor
-                        auditor = WebsiteAuditor(self.db)
-                        result = await auditor.audit(company.id)
-                        audit = auditor.save_audit(company.id, result)
-                    except Exception as e:
-                        logger.warning(f"Auditoria falhou para {company.name}: {e}")
+                country = self._country_of(company)
+                if country is None:
+                    self._upsert_queue(company.id, "NAO_ELEGIVEL", "Pais sem configuracao em countries.yaml")
+                    continue
 
-                opportunities = self.db.query(Opportunity).filter(
-                    Opportunity.company_id == company.id
-                ).all()
-
-                if not opportunities:
-                    try:
-                        from app.opportunities.engine import OpportunityEngine
-                        engine = OpportunityEngine(self.db)
-                        results = engine.evaluate(company)
-                        engine.save_opportunities(company, results)
-                        opportunities = self.db.query(Opportunity).filter(
-                            Opportunity.company_id == company.id
-                        ).all()
-                    except Exception as e:
-                        logger.warning(f"Oportunidades falharam para {company.name}: {e}")
-
-                from app.llm.sales_agent import generate_outreach_message
-                from app.api.v1.endpoints.diagnosis import build_diagnosis
-
-                diagnosis = build_diagnosis(company, audit, opportunities, self.db)
-                message_text = await generate_outreach_message(
-                    company, audit, opportunities, diagnosis
-                )
-
-                valid, error = ContentValidator.validate(
-                    message_text, company.name, audit, opportunities
-                )
-                msg_status = "aprovado" if valid else "erro_validacao"
-
-                if valid:
-                    approved_at = datetime.now(timezone.utc)
-                else:
-                    approved_at = None
-                    logger.warning(f"Validacao falhou para {company.name}: {error}")
-
-                msg = Message(
-                    company_id=company.id,
-                    opportunity_ids=json.dumps([o.id for o in opportunities[:3]]),
-                    message_text=message_text,
-                    status=msg_status,
-                    generated_at=datetime.now(timezone.utc),
-                    approved_at=approved_at,
-                    llm_model=settings.LLM_MODEL,
-                )
-                self.db.add(msg)
+                channel, reason = resolve_channel(company, audit, country)
                 self.db.commit()
+                if not channel:
+                    self._upsert_queue(company.id, "NAO_ELEGIVEL", f"Sem canal: {reason}")
+                    logger.info(f"Nao elegivel: {company.name} ({reason})")
+                    continue
 
-                entry = ProspectingQueue(
-                    company_id=company.id,
-                    status="PENDENTE" if valid else "ERRO",
-                    notes="Auto-enfileirado" if valid else f"Validacao falhou: {error}",
+                msg, error = await self._compose(company, audit, opportunities, channel, country)
+                status = "ERRO" if error else "PENDENTE"
+                self._upsert_queue(
+                    company.id, status,
+                    f"Auto-enfileirado ({channel})" if not error else f"Validacao falhou: {error}",
                 )
-                self.db.add(entry)
-                self.db.commit()
                 enqueued += 1
 
-                logger.info(
-                    f"Auto-enfileirado: {company.name} "
-                    f"(msg={msg_status}, queue={'PENDENTE' if valid else 'ERRO'})"
-                )
+                logger.info(f"Auto-enfileirado: {company.name} (canal={channel}, msg={msg.status}, queue={status})")
 
             except Exception as e:
                 logger.error(f"Erro ao auto-enfileirar {company.name}: {e}")
@@ -859,27 +809,24 @@ class Dispatcher:
                     enqueued = await self._auto_enqueue()
                     logger.info(f"Pos-coleta — empresas processadas: {enqueued}")
 
-            if not self._is_within_send_window():
-                logger.info("Fora da janela de envio — skip envio, auto-enqueue concluido")
-                return
-
-            if not self._can_send_daily():
-                logger.info("Limite diario atingido — skip envio")
-                return
-
-            if not self._can_send_hourly():
-                logger.info("Limite horario atingido — skip envio")
-                return
-
             pending = self._get_pending_companies()
             logger.info(f"Empresas na fila: {len(pending)}")
 
+            any_window_open = False
             for entry in pending:
                 if self._paused or self._circuit_open:
                     break
 
-                if not self._can_send_daily() or not self._can_send_hourly():
-                    break
+                company = self.db.get(Company, entry.company_id)
+                country = self._country_of(company) if company else None
+                channel = (company.preferred_channel if company else None) or "whatsapp"
+
+                # Janela e limites sao por pais/canal: a fila mistura Brasil e Europa.
+                if not self._is_within_send_window(country) or not self._is_weekday(country):
+                    continue
+                any_window_open = True
+                if not self._can_send_daily(channel) or not self._can_send_hourly(channel):
+                    continue
 
                 await self._process_company(entry)
 
@@ -889,6 +836,9 @@ class Dispatcher:
                 )
                 logger.debug(f"Delay: {delay:.1f}s")
                 await asyncio.sleep(delay)
+
+            if pending and not any_window_open:
+                logger.info("Fora da janela de envio de todos os paises da fila — skip envio")
 
         except Exception as e:
             logger.error(f"Erro no ciclo: {e}")
