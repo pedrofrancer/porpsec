@@ -10,8 +10,23 @@ from app.models.company import Company
 from app.models.geography import City
 from app.models.category import Category
 from app.core.config import settings
+from app.core.countries import build_search_query, get_country
 
 logger = logging.getLogger(__name__)
+
+
+_CONSENT_BUTTONS = [
+    'button:has-text("Aceitar tudo")', 'button:has-text("Tout accepter")',
+    'button:has-text("Alles accepteren")', 'button:has-text("Accept all")',
+    'button:has-text("Aceptar todo")', 'button:has-text("Aceitar")',
+]
+
+# Prefixos de aria-label por idioma que o Maps coloca antes do valor.
+_LABEL_PREFIXES = re.compile(
+    r"^(Telefone|Ligar para|T[eé]l[eé]phone|Appeler le|Telefoonnummer|Bellen|Phone|Call|"
+    r"Endere[cç]o|Adresse|Adres|Address|Direcci[oó]n|Tel[eé]fono|Llamar a)\s*:?\s*",
+    re.I,
+)
 
 
 class GoogleMapsCollector(BaseCollector):
@@ -42,7 +57,9 @@ class GoogleMapsCollector(BaseCollector):
         if not category:
             raise ValueError(f"Categoria '{category_slug}' não encontrada no banco.")
 
-        query = f"{category.name} em {city_name}"
+        country = get_country(city.state.country.code if city.state and city.state.country else None)
+        query = build_search_query(country, category.slug, category.name, city_name)
+        self._locale = country.maps_locale
 
         existing = self.db.query(Company.google_place_id).filter(
             Company.google_place_id.isnot(None)
@@ -60,7 +77,7 @@ class GoogleMapsCollector(BaseCollector):
                     "Chrome/131.0.0.0 Safari/537.36"
                 ),
                 viewport={"width": 1280, "height": 900},
-                locale="pt-BR",
+                locale=self._locale,
             )
             page = context.new_page()
 
@@ -77,13 +94,14 @@ class GoogleMapsCollector(BaseCollector):
     def _search_google_maps(
         self, page, query: str, city: City, category: Category, max_results: int
     ):
-        url = f"https://www.google.com/maps/search/{query.replace(' ', '+')}"
+        hl = self._locale.split("-")[0]
+        url = f"https://www.google.com/maps/search/{query.replace(' ', '+')}?hl={hl}"
         page.goto(url, wait_until="domcontentloaded", timeout=settings.GOOGLE_MAPS_TIMEOUT)
         time.sleep(6)
 
         # Fechar popup de cookies se existir
         try:
-            for selector in ['button:has-text("Aceitar tudo")', 'button:has-text("Aceitar")']:
+            for selector in _CONSENT_BUTTONS:
                 btn = page.locator(selector)
                 if btn.count() > 0:
                     btn.first.click()
@@ -225,6 +243,9 @@ class GoogleMapsCollector(BaseCollector):
                     'span.ceNzKf span[role="img"]',
                     'span[aria-label*="estrela"]',
                     'div[aria-label*="estrela"]',
+                    'span[aria-label*="toile"]',
+                    'span[aria-label*="ster"]',
+                    'span[aria-label*="star"]',
                 ];
                 for (const sel of ratingSelectors) {
                     const el = document.querySelector(sel);
@@ -242,6 +263,9 @@ class GoogleMapsCollector(BaseCollector):
                 const reviewSelectors = [
                     'button[jsaction*="review"]',
                     'span[aria-label*="avaliação"]',
+                    'span[aria-label*="avis"]',
+                    'span[aria-label*="review"]',
+                    'span[aria-label*="recensie"]',
                 ];
                 for (const sel of reviewSelectors) {
                     const el = document.querySelector(sel);
@@ -267,6 +291,10 @@ class GoogleMapsCollector(BaseCollector):
 
         if data:
             detail.update(data)
+
+        for key in ("phone", "address"):
+            if detail.get(key):
+                detail[key] = _LABEL_PREFIXES.sub("", detail[key]).strip() or None
 
         # Converter rating
         if detail.get("rating"):
