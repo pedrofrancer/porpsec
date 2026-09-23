@@ -730,89 +730,74 @@ class Dispatcher:
             logger.info(f"Empresa {company.name} ja possui mensagem ativa")
             return False
 
-        audit = self.db.query(Audit).filter(Audit.company_id == company.id).order_by(Audit.id.desc()).first()
+        channel = company.preferred_channel or "whatsapp"
 
-        if not audit:
-            try:
-                from app.auditors.website_auditor import WebsiteAuditor
-                auditor = WebsiteAuditor(self.db)
-                result = await auditor.audit(company.id)
-                audit = auditor.save_audit(company.id, result)
-            except Exception as e:
-                logger.warning(f"Auditoria falhou para {company.name}: {e}")
+        # Reaproveita a mensagem aprovada no auto-enqueue (evita segunda chamada ao LLM).
+        msg = self.db.query(Message).filter(
+            Message.company_id == company.id,
+            Message.status == "aprovado",
+            Message.message_type == "outreach",
+            Message.channel == channel,
+        ).order_by(Message.id.desc()).first()
 
-        opportunities = self.db.query(Opportunity).filter(Opportunity.company_id == company.id).all()
-
-        if not opportunities:
-            try:
-                from app.opportunities.engine import OpportunityEngine
-                engine = OpportunityEngine(self.db)
-                results = engine.evaluate(company)
-                engine.save_opportunities(company, results)
-                opportunities = self.db.query(Opportunity).filter(Opportunity.company_id == company.id).all()
-            except Exception as e:
-                logger.warning(f"Oportunidades falharam para {company.name}: {e}")
-
-        from app.llm.sales_agent import generate_outreach_message
-        from app.api.v1.endpoints.diagnosis import build_diagnosis
-
-        diagnosis = build_diagnosis(company, audit, opportunities, self.db)
-        message_text = await generate_outreach_message(company, audit, opportunities, diagnosis)
-
-        valid, error = ContentValidator.validate(message_text, company.name, audit, opportunities)
-        if not valid:
-            msg = Message(
-                company_id=company.id,
-                opportunity_ids=json.dumps([o.id for o in opportunities[:3]]),
-                message_text=message_text,
-                status="erro_validacao",
-                generated_at=datetime.now(timezone.utc),
-                llm_model=settings.LLM_MODEL,
-            )
-            self.db.add(msg)
-            self.db.commit()
-            logger.warning(f"Validacao falhou para {company.name}: {error}")
-            return False
-
-        msg = Message(
-            company_id=company.id,
-            opportunity_ids=json.dumps([o.id for o in opportunities[:3]]),
-            message_text=message_text,
-            status="aprovado",
-            generated_at=datetime.now(timezone.utc),
-            approved_at=datetime.now(timezone.utc),
-            llm_model=settings.LLM_MODEL,
-        )
-        self.db.add(msg)
-        self.db.commit()
-        self.db.refresh(msg)
+        if msg is None:
+            country = self._country_of(company) or get_country("BR")
+            audit, opportunities = await self._prepare_company(company)
+            msg, error = await self._compose(company, audit, opportunities, channel, country)
+            if error:
+                return False
 
         return await self._send_message(msg, company)
 
-    async def _send_message(self, msg: Message, company: Company) -> bool:
-        """Envia mensagem via WhatsApp client."""
+    async def _deliver(self, msg: Message, company: Company) -> tuple[dict | None, str | None]:
+        """Entrega pelo canal da mensagem. Retorna (resultado, contato); resultado None = canal indisponivel."""
+        if msg.channel == "email":
+            from app.sending.email_client import EmailSender
+
+            sender = EmailSender()
+            if not await sender.is_configured():
+                logger.warning("E-mail nao configurado (.env) — envio adiado")
+                return None, company.email
+            result = await sender.send(company.email, msg.subject, msg.message_text)
+            msg.thread_id = result["message_id"]
+            return result, company.email
+
         from app.sending.whatsapp_client import WhatsAppClient
 
         client = WhatsAppClient()
+        if not await client.is_connected():
+            logger.warning("WhatsApp nao conectado")
+            return None, company.phone
+        result = await client.send(company.phone, msg.message_text)
+        return result, company.phone
 
+    async def _send_message(self, msg: Message, company: Company) -> bool:
+        """Envia a mensagem pelo canal dela e registra o resultado."""
+        contact = company.email if msg.channel == "email" else company.phone
         try:
-            if not await client.is_connected():
-                logger.warning("WhatsApp nao conectado")
+            result, contact = await self._deliver(msg, company)
+            if result is None:
                 return False
-
-            result = await client.send(company.phone, msg.message_text)
 
             msg.status = "enviado"
             msg.sent_at = datetime.now(timezone.utc)
+            msg.send_attempts = (msg.send_attempts or 0) + 1
+            msg.last_error = None
             self.db.commit()
 
-            WarmupManager.register_first_use()
+            WarmupManager.register_first_use(msg.channel)
 
+            country = self._country_of(company)
             log_entry = ActionLog(
                 company_id=company.id,
-                contact_id=company.phone,
+                contact_id=contact,
                 action="mensagem_enviada",
-                details=json.dumps({"message_id": msg.id, "result": result}),
+                details=json.dumps({
+                    "message_id": msg.id,
+                    "channel": msg.channel,
+                    "legal_basis": country.legal_basis if country else None,
+                    "result": result,
+                }, default=str),
             )
             self.db.add(log_entry)
 
@@ -826,11 +811,13 @@ class Dispatcher:
             self.db.commit()
 
             self._consecutive_errors = 0
-            logger.info(f"Mensagem enviada para {company.name} ({company.phone})")
+            logger.info(f"Mensagem enviada para {company.name} ({msg.channel}: {contact})")
             return True
 
         except Exception as e:
             msg.status = "erro_envio"
+            msg.send_attempts = (msg.send_attempts or 0) + 1
+            msg.last_error = str(e)
             self.db.commit()
 
             self._consecutive_errors += 1
@@ -839,7 +826,7 @@ class Dispatcher:
 
             log_entry = ActionLog(
                 company_id=company.id,
-                contact_id=company.phone,
+                contact_id=contact,
                 action="erro_envio",
                 details=str(e),
             )
