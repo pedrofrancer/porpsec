@@ -37,12 +37,13 @@ O que me preocupa, em ordem:
    em rascunho até eu aprovar; o envio automático existe, mas é opt-in explícito.
 2. **Dado pessoal onde deveria haver dado de empresa.** Webmail e e-mail com nome de pessoa são
    recusados na origem; opt-out é permanente e checado antes de qualquer envio, em qualquer canal.
-3. **Exposição da operação.** O painel e a API escutam só em `127.0.0.1` e ainda não têm
-   autenticação (#5). As prévias publicadas levam `noindex`, slug com sufixo aleatório e expiram
-   em trinta dias.
-4. **Entrada hostil.** Texto que chega de fora é não confiável por definição. As respostas
-   recebidas e as prévias já são escapadas no painel, e a prévia escapa tudo que vem do site
-   auditado; as telas antigas do painel (empresas, fila) ainda renderizam o nome da empresa cru.
+3. **Exposição da operação.** Com `API_TOKEN` definido, API, prévias locais e docs exigem o
+   token; sem ele, só entra quem vem do próprio PC. Túnel chega como 127.0.0.1, então quem expõe
+   por túnel define o token. As prévias publicadas levam `noindex`, slug com sufixo aleatório e
+   expiram em trinta dias.
+4. **Entrada hostil.** Texto que chega de fora é não confiável por definição. Tudo que vem do
+   Google Maps, de site auditado, de resposta recebida ou do LLM é escapado antes de ir para o
+   painel, e a prévia escapa o que vem do site.
 
 Nenhuma dessas camadas fecha o problema por completo. Elas só estreitam a janela.
 
@@ -97,14 +98,17 @@ Testes: `.venv\Scripts\python -m pytest tests -q` na pasta `prospectplatform`.
 | 14 | Pipeline europeu: e-mail, respostas, prévia de site (#1) | Fechada |
 | 15 | Teste ponta a ponta contra os serviços reais (#2) | Aberta |
 | 16 | Validação jurídica por país (#3) | Aberta |
-| 17 | Suíte de testes no CI (#4) | Aberta |
-| 18 | Autenticação no painel e na API (#5) | Aberta |
+| 17 | Suíte de testes no CI (#4) | Entregue (#13) |
+| 18 | Autenticação no painel e na API (#5) | Entregue (#11) |
 | 19 | Métricas do piloto (#6) | Aberta |
 | 20 | Forma jurídica na Holanda pela KvK (#7) | Aberta |
 | 21 | Resposta no WhatsApp (#8) | Aberta |
-| 22 | Encerramento limpo dos loops de fundo (#9) | Aberta |
+| 22 | Encerramento limpo dos loops de fundo (#9) | Entregue (#12) |
+| 23 | E-mails na primeira pessoa, com voz de gente | Em revisão |
 
-Cento e sessenta testes passam com dublês; nenhum deles ainda falou com o Gmail de verdade. Até a
-Etapa 15 fechar, o pipeline europeu é uma hipótese bem formalizada, não um resultado.
+A Etapa 15 já tem a ferramenta (`scripts/verificar_config.py`), falta o teste contra os serviços
+reais. Cento e noventa testes passam com dublês, e o CI roda todos em cada PR; nenhum deles ainda
+falou com o Gmail de verdade. Até lá, o pipeline europeu é uma hipótese bem formalizada, não um
+resultado.
 
 Documentos de produto: [PRD](prospectplatform/prd.md) e [TechSpec](prospectplatform/techspec.md).
