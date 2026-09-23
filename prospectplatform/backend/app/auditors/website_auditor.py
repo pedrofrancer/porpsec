@@ -10,8 +10,82 @@ from playwright.async_api import async_playwright
 from sqlalchemy.orm import Session
 
 from app.auditors.base import BaseAuditor, AuditResult
+from app.auditors.extractors import (
+    clean_about_snippet,
+    detect_legal_entity,
+    extract_emails,
+    normalize_lang,
+    pick_brand_colors,
+    pick_contact_email,
+)
 from app.models.company import Company
 from app.models.audit import Audit
+
+_CONTACT_LINK_RE = r"contact|contato|contacto|kontakt|mentions-legales|mentions|impressum|colofon|over-ons|sobre|a-propos|about"
+
+_BRAND_JS = r"""() => {
+    const abs = (u) => { try { return new URL(u, location.href).href; } catch (e) { return null; } };
+    const data = {};
+    data.lang = document.documentElement.getAttribute('lang') || '';
+    data.mailtos = Array.from(document.querySelectorAll('a[href^="mailto:"]'))
+        .map(a => decodeURIComponent(a.getAttribute('href').slice(7).split('?')[0]));
+    data.html = document.documentElement.outerHTML.slice(0, 400000);
+    data.text = (document.body.innerText || '').slice(0, 20000);
+    const footer = document.querySelector('footer, [class*="footer"], [id*="footer"]');
+    data.footer = footer ? footer.innerText.slice(0, 3000) : '';
+
+    // Logo: img no header/nav com 'logo' no class/id/alt/src
+    const logoCandidates = Array.from(document.querySelectorAll(
+        'header img, nav img, [class*="logo"] img, img[class*="logo"], img[id*="logo"], img[alt*="logo" i], img[src*="logo" i]'
+    ));
+    const logo = logoCandidates.find(img => (img.naturalWidth || img.width) >= 40) || logoCandidates[0];
+    let logoSrc = logo ? (logo.currentSrc || logo.getAttribute('src')) : null;
+    if (!logoSrc) {
+        const icon = document.querySelector('link[rel="apple-touch-icon"], link[rel*="icon"][sizes]');
+        logoSrc = icon ? icon.getAttribute('href') : null;
+    }
+    data.logo = logoSrc;
+
+    const og = document.querySelector('meta[property="og:image"], meta[name="og:image"], meta[name="twitter:image"]');
+    data.og_image = og ? og.getAttribute('content') : null;
+
+    // Cores: header, nav, botoes e links
+    const colorEls = Array.from(document.querySelectorAll(
+        'header, nav, [class*="header"], button, a.btn, a.button, [class*="btn"], [class*="cta"], h1, h2, a'
+    )).slice(0, 120);
+    const theme = document.querySelector('meta[name="theme-color"]');
+    data.colors = theme ? [theme.getAttribute('content'), theme.getAttribute('content')] : [];
+    colorEls.forEach(el => {
+        const s = getComputedStyle(el);
+        data.colors.push(s.backgroundColor);
+        if (el.tagName === 'A' || /^H[12]$/.test(el.tagName)) data.colors.push(s.color);
+    });
+
+    // Texto "sobre": secao com id/class about/sobre/over-ons/a-propos, senao meta description
+    const about = document.querySelector(
+        '[id*="about" i] p, [class*="about" i] p, [id*="sobre" i] p, [class*="sobre" i] p, ' +
+        '[id*="over-ons" i] p, [id*="propos" i] p, [class*="propos" i] p'
+    );
+    const desc = document.querySelector('meta[name="description"]');
+    data.about = about ? about.innerText : (desc ? desc.getAttribute('content') : '');
+
+    const re = new RegExp('""" + _CONTACT_LINK_RE + r"""', 'i');
+    const contact = Array.from(document.querySelectorAll('a[href]')).find(a => {
+        const href = a.getAttribute('href') || '';
+        if (href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('#')) return false;
+        const target = abs(href);
+        return target && new URL(target).host === location.host && (re.test(href) || re.test(a.innerText || ''));
+    });
+    data.contact_url = contact ? abs(contact.getAttribute('href')) : null;
+    return data;
+}"""
+
+_CONTACT_JS = r"""() => ({
+    mailtos: Array.from(document.querySelectorAll('a[href^="mailto:"]'))
+        .map(a => decodeURIComponent(a.getAttribute('href').slice(7).split('?')[0])),
+    html: document.documentElement.outerHTML.slice(0, 400000),
+    text: (document.body.innerText || '').slice(0, 20000),
+})"""
 
 
 class WebsiteAuditor(BaseAuditor):
@@ -161,10 +235,46 @@ class WebsiteAuditor(BaseAuditor):
                 result.raw_data["meta_title"] = analysis.get("meta_title", "")
                 result.raw_data["meta_description"] = analysis.get("meta_description", "")
 
+                await self._extract_contact_and_brand(page, url, result)
+
                 await browser.close()
 
         except Exception as e:
             result.raw_data["website_audit_error"] = str(e)
+
+    async def _extract_contact_and_brand(self, page, url: str, result: AuditResult):
+        """E-mail, idioma, forma juridica e identidade visual da home (e da pagina de contato)."""
+        try:
+            data = await page.evaluate(_BRAND_JS)
+        except Exception as e:
+            result.raw_data["brand_extract_error"] = str(e)
+            return
+
+        result.site_lang = normalize_lang(data.get("lang"))
+        emails = extract_emails(" ".join(data.get("mailtos", [])), data.get("html", ""))
+        legal_text = " ".join([data.get("footer", ""), data.get("text", "")])
+
+        contact_url = data.get("contact_url")
+        if contact_url and (not emails or not detect_legal_entity(legal_text)):
+            try:
+                await page.goto(contact_url, wait_until="domcontentloaded", timeout=self.TIMEOUT_MS)
+                await asyncio.sleep(1)
+                contact = await page.evaluate(_CONTACT_JS)
+                emails += [e for e in extract_emails(" ".join(contact.get("mailtos", [])), contact.get("html", "")) if e not in emails]
+                legal_text += " " + contact.get("text", "")
+                result.raw_data["contact_page"] = contact_url
+            except Exception as e:
+                result.raw_data["contact_page_error"] = str(e)
+
+        result.emails_found = emails[:10]
+        result.legal_entity_signal = detect_legal_entity(legal_text)
+
+        logo = data.get("logo")
+        result.logo_url = urljoin(url, logo) if logo else None
+        og = data.get("og_image")
+        result.og_image_url = urljoin(url, og) if og else None
+        result.dominant_colors = pick_brand_colors(data.get("colors", []))
+        result.about_snippet = clean_about_snippet(data.get("about"))
 
     async def _audit_social_media(self, company: Company, result: AuditResult):
         async with async_playwright() as p:
@@ -420,10 +530,23 @@ class WebsiteAuditor(BaseAuditor):
             google_business_complete=result.google_business_complete,
             whatsapp_catalog_link=result.whatsapp_catalog_link,
             whatsapp_responds_badge=result.whatsapp_responds_badge,
+            site_lang=result.site_lang,
+            emails_found=json.dumps(result.emails_found) if result.emails_found else None,
+            legal_entity_signal=result.legal_entity_signal,
+            logo_url=result.logo_url,
+            dominant_colors=json.dumps(result.dominant_colors) if result.dominant_colors else None,
+            og_image_url=result.og_image_url,
+            about_snippet=result.about_snippet,
             raw_data=json.dumps(result.raw_data, default=str, ensure_ascii=False),
             audited_at=datetime.now(timezone.utc),
         )
         self.db.add(audit)
+
+        company = self.db.get(Company, company_id)
+        if company and not company.email and result.emails_found:
+            company.email = pick_contact_email(result.emails_found, company.website)
+            company.email_source = "website"
+
         self.db.commit()
         self.db.refresh(audit)
         return audit
