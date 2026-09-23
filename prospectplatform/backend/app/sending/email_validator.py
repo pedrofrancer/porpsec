@@ -18,6 +18,14 @@ AI_TELLS = [
     r"espero que (este|se encontre)", r"\bdelve\b", r"game[- ]changer", r"unlock", r"elevate",
     r"in today's digital", r"à l'[èe]re du num[ée]rique", r"in het digitale tijdperk",
     r"na era digital", r"—",
+    # Cliches de vendedor: ninguem escreve assim para um barbeiro que nunca viu.
+    r"n'h[ée]sitez pas", r"je me permets", r"pr[ée]sence (en ligne|digitale|num[ée]rique)",
+    r"visibilit[ée] en ligne", r"\bbooster\b", r"\boptimis", r"\bsolutions?\b",
+    r"aarzel niet", r"online (aanwezigheid|zichtbaarheid)", r"n[ãa]o hesite",
+    r"presen[çc]a (online|digital)", r"\bpotenciar\b", r"\balavancar\b",
+    r"don'?t hesitate", r"online presence", r"\bboost", r"next level", r"i am reaching out",
+    r"\bsolu[çc][õo]es\b|\bsolu[çc][ãa]o\b|\boplossing(en)?\b",
+    r"!",
 ]
 
 SUBJECT_MAX = 90
