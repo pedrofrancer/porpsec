@@ -9,6 +9,7 @@ from app.models.base import Base
 import app.models  # noqa: F401
 
 NEW_COMPANY_COLS = ("email", "email_source", "preferred_channel")
+NEW_MESSAGE_COLS = ("channel", "message_type", "subject", "language", "thread_id")
 NEW_AUDIT_COLS = ("site_lang", "emails_found", "legal_entity_signal", "logo_url",
                   "dominant_colors", "og_image_url", "about_snippet")
 
@@ -42,6 +43,9 @@ def test_legacy_db_without_alembic_version_is_upgraded(tmp_path):
             conn.execute(text(f"ALTER TABLE companies DROP COLUMN {col}"))
         for col in NEW_AUDIT_COLS:
             conn.execute(text(f"ALTER TABLE audits DROP COLUMN {col}"))
+        conn.execute(text("DROP INDEX ix_messages_thread_id"))
+        for col in NEW_MESSAGE_COLS:
+            conn.execute(text(f"ALTER TABLE messages DROP COLUMN {col}"))
     engine.dispose()
 
     engine = create_engine(url)
@@ -49,3 +53,4 @@ def test_legacy_db_without_alembic_version_is_upgraded(tmp_path):
     assert ensure_schema(engine, url) == "upgraded"
     assert set(NEW_COMPANY_COLS) <= _cols(engine, "companies")
     assert set(NEW_AUDIT_COLS) <= _cols(engine, "audits")
+    assert set(NEW_MESSAGE_COLS) <= _cols(engine, "messages")
