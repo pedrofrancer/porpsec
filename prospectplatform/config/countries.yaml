@@ -1,0 +1,81 @@
+# Configuracao por pais. Tudo que varia por pais sai daqui, nada hardcoded no codigo.
+#
+# outreach_enabled: liga/desliga envio frio no pais (coleta e auditoria continuam).
+# languages: idiomas aceitos; o primeiro e o fallback quando o site nao declara <html lang>.
+# require_legal_entity: so contata se o site mostrar sinal de pessoa juridica
+#   (NL: eenmanszaak/VOF contam como pessoa fisica e exigem consentimento).
+# legal_basis: texto registrado no ActionLog a cada envio (auditabilidade).
+
+countries:
+  BR:
+    name: Brasil
+    languages: [pt-BR]
+    timezone: America/Sao_Paulo
+    maps_locale: pt-BR
+    search_template: "{term} em {city}"
+    send_window: [9, 19]
+    outreach_enabled: true
+    channels: [whatsapp]
+    require_legal_entity: false
+    legal_basis: "LGPD art. 7 IX - legitimo interesse"
+
+  PT:
+    name: Portugal
+    languages: [pt-PT]
+    timezone: Europe/Lisbon
+    maps_locale: pt-PT
+    search_template: "{term} em {city}"
+    send_window: [9, 18]
+    outreach_enabled: true
+    channels: [email]
+    require_legal_entity: false
+    legal_basis: "DL 7/2004 art. 22 n.3 - pessoa coletiva, opt-out"
+
+  BE:
+    name: Belgique
+    languages: [fr-BE, nl-BE]
+    timezone: Europe/Brussels
+    maps_locale: fr-BE
+    search_template: "{term} {city}"
+    send_window: [9, 18]
+    outreach_enabled: true
+    channels: [email]
+    require_legal_entity: false
+    legal_basis: "AR 04/04/2003 art. 1 - adresse generique de personne morale, opt-out"
+
+  FR:
+    name: France
+    languages: [fr-FR]
+    timezone: Europe/Paris
+    maps_locale: fr-FR
+    search_template: "{term} {city}"
+    send_window: [9, 18]
+    outreach_enabled: true
+    channels: [email]
+    require_legal_entity: false
+    legal_basis: "CNIL B2B - offre en rapport avec la profession, opt-out"
+
+  NL:
+    name: Nederland
+    languages: [nl-NL]
+    timezone: Europe/Amsterdam
+    maps_locale: nl-NL
+    search_template: "{term} {city}"
+    send_window: [9, 18]
+    outreach_enabled: true
+    channels: [email]
+    require_legal_entity: true
+    legal_basis: "Tw art. 11.7 - rechtspersoon (B.V./N.V.), opt-out"
+
+  ES:
+    name: Espana
+    languages: [es-ES]
+    timezone: Europe/Madrid
+    maps_locale: es-ES
+    search_template: "{term} en {city}"
+    send_window: [9, 18]
+    # LSSI art. 21 exige consentimento previo, inclusive B2B.
+    outreach_enabled: false
+    channels: [email]
+    require_legal_entity: false
+    legal_basis: ""
