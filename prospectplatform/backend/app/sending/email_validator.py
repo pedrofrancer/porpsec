@@ -33,7 +33,9 @@ BODY_MAX = 1200
 BODY_MIN_WORDS = 35
 
 
-def validate_email(subject: str | None, body: str | None, company_name: str) -> tuple[bool, str | None]:
+def validate_email(subject: str | None, body: str | None, company_name: str,
+                   allowed_link: str | None = None) -> tuple[bool, str | None]:
+    """allowed_link: o link da previa, o unico que o primeiro e-mail pode levar (uma vez)."""
     if not subject or not subject.strip():
         return False, "Assunto vazio"
     if not body or not body.strip():
@@ -52,8 +54,15 @@ def validate_email(subject: str | None, body: str | None, company_name: str) -> 
             if re.search(pattern, text, 0 if pattern.isupper() else re.IGNORECASE):
                 return False, f"Placeholder detectado: {pattern}"
 
-    if re.search(r"https?://|www\.", body, re.IGNORECASE):
-        return False, "Link no primeiro e-mail (prejudica entrega; a previa vai so apos resposta)"
+    if allowed_link:
+        alone = re.findall(rf"(?m)^[ \t]*{re.escape(allowed_link)}[ \t]*$", body)
+        if body.count(allowed_link) != 1 or len(alone) != 1:
+            return False, "O link da previa tem que aparecer exatamente uma vez, sozinho na linha e sem alteracao"
+        rest = body.replace(allowed_link, "")
+    else:
+        rest = body
+    if re.search(r"https?://|www\.", rest, re.IGNORECASE):
+        return False, "Link fora da previa no primeiro e-mail (prejudica entrega)"
 
     if company_name.lower() not in body.lower():
         return False, f"Nome da empresa '{company_name}' nao encontrado no corpo"
