@@ -7,7 +7,8 @@ from pathlib import Path
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.core.database import create_tables, SessionLocal
+from app.core.database import SessionLocal
+from app.core.migrations import ensure_schema
 from app.core.logging_config import setup_logging
 from app.api.v1.router import api_router
 
@@ -27,7 +28,7 @@ def get_dispatcher():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
-    create_tables()
+    ensure_schema()
 
     dispatcher = get_dispatcher()
     db = SessionLocal()

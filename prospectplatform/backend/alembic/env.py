@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.models import Base
 
 config = context.config
-if config.config_file_name is not None:
+# Chamado pelo app (ensure_schema): nao reconfigura o logging da aplicacao.
+if config.config_file_name is not None and not config.attributes.get("skip_logging"):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
