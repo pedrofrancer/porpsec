@@ -25,7 +25,7 @@ _FOOTER = {
     ),
     "fr": (
         "--\n{brand}{contact_line}\n{address}\n"
-        "Vous recevez ce message car l'adresse de {company} est publiée sur son site. "
+        "Vous recevez ce message car l'adresse {de_company} est publiée sur son site. "
         "Pour ne plus recevoir de messages, répondez STOP et je supprime l'adresse tout de suite."
     ),
     "nl": (
@@ -52,7 +52,14 @@ def legal_footer(language: str | None, brand: str, address: str, company_name: s
     contact_line = f" ({extras})" if extras else ""
     return _FOOTER[lang_key(language)].format(
         brand=brand, contact_line=contact_line, address=address, company=company_name,
+        de_company=_de(company_name),
     )
+
+
+def _de(name: str) -> str:
+    """Elisao do frances: "d'Atelier", "de Barbier"."""
+    first = name.strip()[:1].lower()
+    return f"d'{name}" if first and first in "aeiouhàâéèêëîïôûü" else f"de {name}"
 
 
 def is_opt_out_reply(text: str | None) -> bool:
