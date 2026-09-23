@@ -562,8 +562,8 @@ class Dispatcher:
         subject, language = None, None
 
         if channel == "email":
-            from app.i18n import legal_footer
             from app.llm.email_agent import generate_outreach_email
+            from app.sending.email_body import finish_email
             from app.sending.email_validator import validate_email
 
             language = country.resolve_language(audit.site_lang if audit else None)
@@ -573,10 +573,7 @@ class Dispatcher:
             else:
                 subject = draft.subject
                 _, error = validate_email(draft.subject, draft.body, company.name)
-                message_text = draft.body + "\n\n" + legal_footer(
-                    language, settings.SENDER_BRAND, settings.SENDER_POSTAL_ADDRESS, company.name,
-                    settings.SENDER_CONTACT_NAME, settings.SENDER_WEBSITE,
-                )
+                message_text = finish_email(draft.body, language, company.name)
         else:
             from app.llm.sales_agent import generate_outreach_message
 

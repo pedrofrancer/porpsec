@@ -21,22 +21,22 @@ _FOOTER = {
     "pt": (
         "--\n{brand}{contact_line}\n{address}\n"
         "Recebeu este e-mail porque o contacto de {company} está publicado no site da empresa. "
-        "Para não receber mais mensagens, responda STOP e removemos o endereço de imediato."
+        "Para não receber mais mensagens, responda STOP e eu removo o endereço de imediato."
     ),
     "fr": (
         "--\n{brand}{contact_line}\n{address}\n"
-        "Vous recevez ce message car l'adresse de {company} est publiée sur son site. "
-        "Pour ne plus recevoir de messages, répondez STOP et nous supprimerons l'adresse immédiatement."
+        "Vous recevez ce message car l'adresse {de_company} est publiée sur son site. "
+        "Pour ne plus recevoir de messages, répondez STOP et je supprime l'adresse tout de suite."
     ),
     "nl": (
         "--\n{brand}{contact_line}\n{address}\n"
         "U ontvangt deze e-mail omdat het adres van {company} op de eigen website staat. "
-        "Wilt u geen berichten meer? Antwoord STOP en wij verwijderen het adres direct."
+        "Wilt u geen berichten meer? Antwoord STOP en ik verwijder het adres direct."
     ),
     "en": (
         "--\n{brand}{contact_line}\n{address}\n"
         "You are receiving this because the address of {company} is published on its website. "
-        "Reply STOP and we will remove the address right away."
+        "Reply STOP and I will remove the address right away."
     ),
 }
 
@@ -52,7 +52,14 @@ def legal_footer(language: str | None, brand: str, address: str, company_name: s
     contact_line = f" ({extras})" if extras else ""
     return _FOOTER[lang_key(language)].format(
         brand=brand, contact_line=contact_line, address=address, company=company_name,
+        de_company=_de(company_name),
     )
+
+
+def _de(name: str) -> str:
+    """Elisao do frances: "d'Atelier", "de Barbier"."""
+    first = name.strip()[:1].lower()
+    return f"d'{name}" if first and first in "aeiouhàâéèêëîïôûü" else f"de {name}"
 
 
 def is_opt_out_reply(text: str | None) -> bool:

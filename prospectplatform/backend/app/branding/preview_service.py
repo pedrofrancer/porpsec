@@ -13,7 +13,7 @@ from app.branding.site_renderer import render_site
 from app.core.background import StopSignal, graceful_stop
 from app.core.config import settings
 from app.core.countries import country_code_for_company, get_country
-from app.i18n import legal_footer
+from app.sending.email_body import finish_email
 from app.llm.followup_agent import compose_followup, validate_followup
 from app.models.audit import Audit
 from app.models.inbound import InboundReply
@@ -129,9 +129,7 @@ class PreviewService:
             self.db.commit()
 
         outreach = reply.message if reply else None
-        body = preview.followup_text + "\n\n" + legal_footer(
-            preview.language, settings.SENDER_BRAND, settings.SENDER_POSTAL_ADDRESS, company.name,
-            settings.SENDER_CONTACT_NAME, settings.SENDER_WEBSITE)
+        body = finish_email(preview.followup_text, preview.language, company.name)
         to = (reply.from_address if reply and reply.from_address else company.email)
         result = await self.sender.send(
             to, preview.followup_subject, body,
