@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
@@ -10,17 +11,30 @@ from app.i18n import lang_key
 
 _TEMPLATES = Path(__file__).resolve().parent / "templates"
 
-# Pares de fontes por mood (Google Fonts). Nada de Inter em tudo: cada categoria com a sua cara.
-FONTS = {
-    "bold": {"url": "Anton&family=Archivo:wght@400;600", "display": "'Anton', Impact, sans-serif",
-             "body": "'Archivo', system-ui, sans-serif"},
-    "soft": {"url": "Fraunces:opsz,wght@9..144,500;9..144,600&family=Karla:wght@400;600",
-             "display": "'Fraunces', Georgia, serif", "body": "'Karla', system-ui, sans-serif"},
-    "warm": {"url": "DM+Serif+Display&family=Work+Sans:wght@400;600",
-             "display": "'DM Serif Display', Georgia, serif", "body": "'Work Sans', system-ui, sans-serif"},
-    "clean": {"url": "Manrope:wght@400;600;700", "display": "'Manrope', system-ui, sans-serif",
-              "body": "'Manrope', system-ui, sans-serif"},
+# Tipografia por oficio (design-system.md, secao 3). Nunca Inter, Roboto, Poppins ou Montserrat.
+_LETREIRO = {"url": "Big+Shoulders+Display:wght@700&family=Archivo:wght@400;600",
+             "display": "'Big Shoulders Display', 'Arial Narrow', sans-serif",
+             "body": "'Archivo', system-ui, sans-serif", "display_weight": 700, "radius": "0"}
+_LIVRO = {"url": "Fraunces:opsz,wght@9..144,500&family=Karla:wght@400;600",
+          "display": "'Fraunces', Georgia, serif", "body": "'Karla', system-ui, sans-serif",
+          "display_weight": 500, "radius": "4px"}
+_BALCAO = {"url": "Figtree:wght@600&family=Karla:wght@400;600",
+           "display": "'Figtree', system-ui, sans-serif", "body": "'Karla', system-ui, sans-serif",
+           "display_weight": 600, "radius": "6px"}
+
+FONTS_BY_CATEGORY = {
+    "barbearia": _LETREIRO, "academia": _LETREIRO,
+    "restaurante": _LIVRO, "pousada": _LIVRO,
+    "salao-de-beleza": _BALCAO, "clinica": _BALCAO,
 }
+# Categoria sem par proprio cai no mood.
+FONTS = {"bold": _LETREIRO, "warm": _LIVRO, "soft": _BALCAO, "clean": _BALCAO}
+
+_QUOTES = {"fr": ("« ", " »"), "pt": ("«", "»"), "nl": ("‘", "’"), "en": ("“", "”")}
+
+
+def fonts_for(kit: BrandKit) -> dict:
+    return FONTS_BY_CATEGORY.get(kit.category_slug) or FONTS[kit.mood]
 
 
 def _relative_luminance(hex_color: str) -> float:
@@ -75,13 +89,28 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
         rating = f"{kit.rating:.1f}".replace(".", "," if key in ("fr", "nl", "pt") else ".")
         rating_line = ui_raw["rating"].format(rating=rating, count=kit.review_count)
 
+    # Mapa como link, nunca embutido: o iframe pesa ~1 MB e trava o scroll no celular.
+    map_url = "https://www.google.com/maps/search/?api=1&query=" + quote_plus(
+        f"{kit.name} {kit.address or kit.city}")
+    if kit.phone:
+        contact_href = "tel:" + kit.phone.replace(" ", "")
+    elif kit.email:
+        contact_href = "mailto:" + kit.email
+    else:
+        contact_href = "#contato"
+    # Foto propria vem primeiro; sem nenhuma foto, a pagina nao reserva espaco para foto.
+    photos = ([kit.hero] if kit.hero else []) + list(kit.gallery)
+
     return _env().get_template("site.html.j2").render(
         kit=kit,
         lang=kit.language,
         ui=ui,
         copy=page_copy,
-        fonts=FONTS[kit.mood],
+        fonts=fonts_for(kit),
         rating_line=rating_line,
-        map_query=kit.address or f"{kit.name} {kit.city}",
+        map_url=map_url,
+        contact_href=contact_href,
+        photos=photos[:3],
+        quotes=_QUOTES.get(key, _QUOTES["en"]),
         year=datetime.now().year,
     )
