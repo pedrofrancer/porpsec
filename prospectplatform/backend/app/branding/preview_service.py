@@ -158,3 +158,86 @@ class PreviewService:
         self.db.commit()
         logger.info(f"Previa enviada para {company.name}: {preview.preview_url}")
         return preview
+
+    def discard(self, preview: SitePreview):
+        preview.status = "descartado"
+        self.publisher.remove([preview.slug])
+        self.db.commit()
+
+    def reset(self, preview: SitePreview):
+        if preview.status not in ("rascunho", "erro"):
+            raise PreviewError("So da para gerar de novo um rascunho ainda nao publicado")
+        preview.status = "pendente"
+        self.db.commit()
+
+    async def process_pending(self) -> int:
+        pending = self.db.query(SitePreview).filter(SitePreview.status == "pendente").all()
+        for preview in pending:
+            try:
+                await self.build_draft(preview)
+                if settings.PREVIEW_AUTO_SEND:
+                    await self.approve(preview)
+            except Exception as e:
+                self.db.rollback()
+                preview.status = "erro" if preview.status == "pendente" else preview.status
+                preview.last_error = str(e)[:2000]
+                self.db.commit()
+                logger.error(f"Previa {preview.slug} falhou: {e}")
+        return len(pending)
+
+    def expire_old(self) -> int:
+        now = datetime.now(timezone.utc)
+        expired = [p for p in self.db.query(SitePreview).filter(SitePreview.status.in_(("publicado", "enviado"))).all()
+                   if p.expires_at and _aware(p.expires_at) < now]
+        if not expired:
+            return 0
+        self.publisher.remove([p.slug for p in expired])
+        for p in expired:
+            p.status = "expirado"
+        self.db.commit()
+        if self.publisher.configured:
+            self.publisher.deploy()
+        return len(expired)
+
+
+def _aware(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
+class PreviewWorker:
+    """Loop de fundo: transforma pedidos pendentes em rascunho e expira previas vencidas."""
+
+    INTERVAL_SECONDS = 30
+
+    def __init__(self, session_factory):
+        self.session_factory = session_factory
+        self._task: asyncio.Task | None = None
+        self._last_expire: datetime | None = None
+
+    async def tick(self):
+        db = self.session_factory()
+        try:
+            service = PreviewService(db)
+            await service.process_pending()
+            now = datetime.now(timezone.utc)
+            if not self._last_expire or now - self._last_expire > timedelta(hours=12):
+                await asyncio.to_thread(service.expire_old)
+                self._last_expire = now
+        finally:
+            db.close()
+
+    async def run_loop(self):
+        while True:
+            try:
+                await self.tick()
+            except Exception as e:
+                logger.error(f"PreviewWorker: {e}", exc_info=True)
+            await asyncio.sleep(self.INTERVAL_SECONDS)
+
+    def start(self):
+        self._task = asyncio.create_task(self.run_loop())
+
+    def stop(self):
+        if self._task and not self._task.done():
+            self._task.cancel()
+        self._task = None
