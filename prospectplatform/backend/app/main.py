@@ -15,6 +15,7 @@ from app.api.v1.router import api_router
 logger = logging.getLogger("dispatcher")
 
 _dispatcher = None
+_reply_listener = None
 
 
 def get_dispatcher():
@@ -23,6 +24,20 @@ def get_dispatcher():
         from app.sending.dispatcher import Dispatcher
         _dispatcher = Dispatcher()
     return _dispatcher
+
+
+def _reply_handler_factory():
+    from app.inbound.reply_handler import ReplyEventHandler
+    db = SessionLocal()
+    return ReplyEventHandler(db), db
+
+
+def get_reply_listener():
+    global _reply_listener
+    if _reply_listener is None:
+        from app.inbound.imap_listener import ImapReplyListener
+        _reply_listener = ImapReplyListener(_reply_handler_factory)
+    return _reply_listener
 
 
 @asynccontextmanager
@@ -36,8 +51,12 @@ async def lifespan(app: FastAPI):
     dispatcher._loop_task = asyncio.create_task(dispatcher.run_loop())
     logger.info("Dispatcher background loop agendado")
 
+    reply_listener = get_reply_listener()
+    reply_listener.start()
+
     yield
 
+    reply_listener.stop()
     dispatcher.stop()
     if hasattr(db, 'close'):
         db.close()

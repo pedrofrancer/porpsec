@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     EMAIL_DAILY_LIMIT: int = 20
     EMAIL_HOURLY_LIMIT: int = 6
     EMAIL_WARMUP_CURVE: str = "5,8,10,12,15,18,20"
+    IMAP_POLL_SECONDS: int = 60
 
     # Identificacao do remetente (rodape legal obrigatorio na UE)
     SENDER_BRAND: str = ""
