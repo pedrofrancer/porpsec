@@ -107,3 +107,12 @@ def test_rodape_frances_faz_elisao_do_nome():
     from app.i18n import legal_footer
     assert "l'adresse d'Atelier Nord" in legal_footer("fr-FR", "B", "A", "Atelier Nord")
     assert "l'adresse de Barbier Lumière" in legal_footer("fr-FR", "B", "A", "Barbier Lumière")
+
+
+def test_frases_fixas_nao_supoem_genero_nem_esquecem_elisao():
+    fr = email_agent.fallback_email(company("Atelier Nord"), audit(), "fr-FR")
+    assert fr.subject == "le site d'Atelier Nord"
+    pt = email_agent.fallback_email(company("Barbearia do Largo"), audit(), "pt-PT")
+    assert "encontrei a " not in pt.body and "apareceu-me Barbearia do Largo" in pt.body
+    assert pt.subject == "Barbearia do Largo: o vosso site"
+    assert "o vosso contacto" in finish_email("Corpo.", "pt-PT", "Barbearia do Largo")
