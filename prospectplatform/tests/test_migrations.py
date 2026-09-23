@@ -43,6 +43,7 @@ def test_legacy_db_without_alembic_version_is_upgraded(tmp_path):
             conn.execute(text(f"ALTER TABLE companies DROP COLUMN {col}"))
         for col in NEW_AUDIT_COLS:
             conn.execute(text(f"ALTER TABLE audits DROP COLUMN {col}"))
+        conn.execute(text("DROP TABLE inbound_replies"))
         conn.execute(text("DROP INDEX ix_messages_thread_id"))
         for col in NEW_MESSAGE_COLS:
             conn.execute(text(f"ALTER TABLE messages DROP COLUMN {col}"))
@@ -54,3 +55,4 @@ def test_legacy_db_without_alembic_version_is_upgraded(tmp_path):
     assert set(NEW_COMPANY_COLS) <= _cols(engine, "companies")
     assert set(NEW_AUDIT_COLS) <= _cols(engine, "audits")
     assert set(NEW_MESSAGE_COLS) <= _cols(engine, "messages")
+    assert "inbound_replies" in inspect(engine).get_table_names()
