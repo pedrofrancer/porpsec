@@ -72,6 +72,9 @@ class QueueManager:
 
     def register_opt_out(self, identifier: str, reason: str | None = None, source: str = "manual") -> OptOut:
         """Registra opt-out permanente."""
+        identifier = identifier.strip()
+        if "@" in identifier and not identifier.startswith("@"):
+            identifier = identifier.lower()  # e-mail; handles de Instagram ("@x") ficam como vieram
         existing = self.db.query(OptOut).filter(OptOut.contact_identifier == identifier).first()
         if existing:
             return existing
