@@ -43,7 +43,7 @@ def build_diagnosis(company: Company, audit: Audit | None, opportunities: list[O
     )
 
     google_business = DiagnosisItem(
-        exists=audit.google_business_complete if audit else False,
+        exists=bool(audit and audit.google_business_complete),
         issues=_google_business_issues(audit, company),
     )
 
