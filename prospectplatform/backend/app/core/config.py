@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     SENDER_WEBSITE: str = ""
     OFFER_PRICE_RANGE: str = ""
 
+    # Previa de site (Cloudflare Pages, plano gratis). Token com permissao "Cloudflare Pages: Edit".
+    CLOUDFLARE_API_TOKEN: str = ""
+    CLOUDFLARE_ACCOUNT_ID: str = ""
+    CLOUDFLARE_PAGES_PROJECT: str = ""
+    PREVIEW_TTL_DAYS: int = 30
+    # False = previa e follow-up ficam em rascunho ate aprovacao no painel.
+    PREVIEW_AUTO_SEND: bool = False
+    # Fotos ilustrativas gratis quando a empresa nao tem fotos proprias (https://www.pexels.com/api/)
+    PEXELS_API_KEY: str = ""
+
     BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
@@ -65,6 +75,14 @@ class Settings(BaseSettings):
     @property
     def email_warmup_curve_list(self) -> list[int]:
         return [int(x.strip()) for x in self.EMAIL_WARMUP_CURVE.split(",")]
+
+    @property
+    def previews_dir(self) -> Path:
+        return self.BASE_DIR / "previews_site"
+
+    @property
+    def pages_configured(self) -> bool:
+        return bool(self.CLOUDFLARE_API_TOKEN and self.CLOUDFLARE_ACCOUNT_ID and self.CLOUDFLARE_PAGES_PROJECT)
 
     @property
     def email_configured(self) -> bool:
