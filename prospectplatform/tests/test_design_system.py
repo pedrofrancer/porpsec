@@ -9,7 +9,7 @@ import re
 import pytest
 
 from app.branding.brand_kit import BrandKit, CATEGORY_PALETTES, Photo, category_palette, load_copy
-from app.branding.site_renderer import FONTS, FONTS_BY_CATEGORY, contrast_ratio, render_site
+from app.branding.site_renderer import FONTS, FONTS_BY_CATEGORY, OBJETO_BY_CATEGORY, contrast_ratio, objeto_for, render_site
 
 BANIDAS = ("Inter", "Roboto", "Poppins", "Montserrat")
 
@@ -94,3 +94,46 @@ def test_toda_categoria_do_copy_tem_paleta(slug):
     lang = next(k for k in copy["categories"][slug] if k != "mood" and k != "photo_query")
     primary, accent, background, text = category_palette(slug, lang)
     assert contrast_ratio(background, text) >= 4.5
+
+
+@pytest.mark.parametrize("slug,objeto", [(s, o) for s, o in OBJETO_BY_CATEGORY.items() if s != "pousada"])
+def test_objeto_do_oficio_na_primeira_tela(slug, objeto):
+    """Cada categoria do design-system.md (secao 4) usa o objeto certo, nao o quadro generico.
+
+    Pousada tem regra propria (objeto-livro so com about_snippet): ver os dois testes dedicados
+    a ela abaixo.
+    """
+    page = html(slug=slug)
+    assert f'class="objeto objeto-{objeto}"' in page
+
+
+def test_categoria_sem_objeto_proprio_cai_na_tabela():
+    assert objeto_for(kit(slug="imobiliaria")) == "tabela"
+    assert objeto_for(kit(slug="oficina")) == "tabela"
+
+
+def test_clinica_troca_lista_de_servicos_por_marcacao():
+    page = html(slug="clinica")
+    assert 'class="objeto objeto-marcacao"' in page
+    assert 'class="objeto objeto-tabela"' not in page
+    assert "tel-grande" in page
+    # Os tratamentos continuam na pagina, so que numa secao propria, sem cor de fundo.
+    assert 'class="lista-sobria"' in page
+
+
+def test_restaurante_e_academia_nao_ganham_pontilhado_de_preco():
+    # O pontilhado imita a tabela de precos da barbearia; carta e quadro de horarios nao tem.
+    assert "<i></i>" not in html(slug="restaurante")
+    assert "<i></i>" not in html(slug="academia")
+    assert "<i></i>" in html(slug="barbearia")
+
+
+def test_pousada_abre_com_a_frase_sobre_quando_existe():
+    page = html(slug="pousada", about_snippet="Casa antiga junto ao rio, aberta desde sempre.")
+    assert 'class="objeto objeto-livro"' in page
+
+
+def test_pousada_sem_frase_sobre_cai_na_tabela_de_servicos():
+    page = html(slug="pousada")
+    assert 'class="objeto objeto-livro"' not in page
+    assert 'class="objeto objeto-tabela"' in page

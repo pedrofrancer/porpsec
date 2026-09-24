@@ -30,6 +30,24 @@ FONTS_BY_CATEGORY = {
 # Categoria sem par proprio cai no mood.
 FONTS = {"bold": _LETREIRO, "warm": _LIVRO, "soft": _BALCAO, "clean": _BALCAO}
 
+# O objeto do oficio (design-system.md, secao 4): cada categoria organiza a primeira tela em
+# torno de um objeto fisico diferente, nao do mesmo "quadro de servicos" para todas.
+# - tabela: tabela de precos na parede (linha com pontilhado ate o valor)
+# - cartao: cartao de balcao (titulo e servico empilhados, sem pontilhado)
+# - carta: ardosia/carta de restaurante (prato em destaque, descricao em italico)
+# - horario: quadro de horarios do ginasio (grade de 2 colunas)
+# - marcacao: cartao de marcacao da clinica (telefone e CTA, sem lista de servicos)
+# clinica e pousada tem tela de abertura propria, tratadas a parte no template.
+OBJETO_BY_CATEGORY = {
+    "barbearia": "tabela", "academia": "horario",
+    "restaurante": "carta", "pousada": "livro",
+    "salao-de-beleza": "cartao", "clinica": "marcacao",
+}
+
+
+def objeto_for(kit: "BrandKit") -> str:
+    return OBJETO_BY_CATEGORY.get(kit.category_slug, "tabela")
+
 _QUOTES = {"fr": ("« ", " »"), "pt": ("«", "»"), "nl": ("‘", "’"), "en": ("“", "”")}
 
 
@@ -107,6 +125,7 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
         ui=ui,
         copy=page_copy,
         fonts=fonts_for(kit),
+        objeto=objeto_for(kit),
         rating_line=rating_line,
         map_url=map_url,
         contact_href=contact_href,

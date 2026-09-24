@@ -36,12 +36,31 @@ h1{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-size:c
 .lead{font-size:1.1rem;margin-top:18px;max-width:34ch}
 .nota{margin-top:14px;font-size:.95rem}
 .acoes{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
-.quadro{background:var(--casa);color:var(--on-casa);padding:28px 28px 20px;border-radius:var(--raio)}
-.quadro h2{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-size:1.5rem;margin-bottom:14px}
-.quadro li{list-style:none;display:flex;align-items:baseline;gap:10px;padding:10px 0;border-top:1px solid color-mix(in srgb,var(--on-casa) 22%,transparent)}
-.quadro li b{font-weight:600}
-.quadro li i{flex:1;border-bottom:1px dotted currentColor;opacity:.5;transform:translateY(-4px)}
-.quadro li span{font-size:.92rem;opacity:.85;text-align:right}
+.objeto{padding:28px 28px 20px;border-radius:var(--raio)}
+.objeto h2{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-size:1.5rem;margin-bottom:14px}
+.objeto ul{list-style:none}
+.objeto li b{font-weight:600}
+.objeto-tabela,.objeto-carta,.objeto-horario{background:var(--casa);color:var(--on-casa)}
+.objeto-cartao{background:var(--papel);color:var(--tinta);border:1px solid var(--fio)}
+.objeto-tabela li{display:flex;align-items:baseline;gap:10px;padding:10px 0;border-top:1px solid color-mix(in srgb,var(--on-casa) 22%,transparent)}
+.objeto-tabela li i{flex:1;border-bottom:1px dotted currentColor;opacity:.5;transform:translateY(-4px)}
+.objeto-tabela li span{font-size:.92rem;opacity:.85;text-align:right}
+.objeto-cartao li{padding:10px 0;border-top:1px solid var(--fio)}
+.objeto-cartao li span{display:block;font-size:.92rem;opacity:.75;margin-top:4px}
+.objeto-carta li{padding:12px 0;border-top:1px dotted color-mix(in srgb,var(--on-casa) 30%,transparent)}
+.objeto-carta li b{font-family:var(--display);font-weight:{{ fonts.display_weight }}}
+.objeto-carta li span{display:block;font-style:italic;font-size:.92rem;opacity:.85;margin-top:4px}
+.objeto-horario ul{display:grid;grid-template-columns:1fr 1fr;gap:0 20px}
+.objeto-horario li{padding:10px 0;border-top:1px solid color-mix(in srgb,var(--on-casa) 22%,transparent)}
+.objeto-horario li span{display:block;font-size:.85rem;opacity:.8;margin-top:2px}
+.objeto-marcacao{display:flex;flex-direction:column;align-items:flex-start;gap:16px;background:var(--casa);color:var(--on-casa)}
+.tel-grande{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-size:clamp(1.6rem,4vw,2.2rem);text-decoration:none}
+.objeto-livro{background:var(--casa);color:var(--on-casa)}
+.objeto-livro blockquote{font-size:1.1rem;font-style:italic}
+.lista-sobria{list-style:none;max-width:60ch}
+.lista-sobria li{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-top:1px solid var(--fio)}
+.lista-sobria b{font-weight:600}
+.lista-sobria span{opacity:.75;text-align:right}
 section{padding:64px 0;border-top:1px solid var(--fio)}
 h2.sec{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-size:clamp(1.6rem,3.5vw,2.4rem);line-height:1.1;margin-bottom:20px}
 .sobre{display:grid;grid-template-columns:4fr 8fr;gap:48px}
@@ -84,15 +103,34 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
           <a class="btn linha" href="{{ map_url }}" target="_blank" rel="noopener">{{ ui.open_map }}</a>
         </div>
       </div>
-      {% if copy.services %}
-      <div class="quadro">
+      {% if objeto == 'marcacao' %}
+      <div class="objeto objeto-marcacao">
+        {% if kit.phone %}<a class="tel-grande" href="tel:{{ kit.phone|replace(' ', '') }}">{{ kit.phone }}</a>{% endif %}
+        <a class="btn" href="{{ contact_href }}">{{ copy.cta }}</a>
+      </div>
+      {% elif objeto == 'livro' and kit.about_snippet %}
+      <div class="objeto objeto-livro">
+        <blockquote>{{ quotes[0] }}{{ kit.about_snippet }}{{ quotes[1] }}</blockquote>
+      </div>
+      {% elif copy.services %}
+      {% set objeto_lista = 'tabela' if objeto == 'livro' else objeto %}
+      <div class="objeto objeto-{{ objeto_lista }}">
         <h2>{{ ui.services }}</h2>
         <ul>
-          {% for title, desc in copy.services %}<li><b>{{ title }}</b><i></i><span>{{ desc }}</span></li>{% endfor %}
+          {% for title, desc in copy.services %}<li><b>{{ title }}</b>{% if objeto_lista == 'tabela' %}<i></i>{% endif %}<span>{{ desc }}</span></li>{% endfor %}
         </ul>
       </div>
       {% endif %}
     </div>
+
+    {% if objeto == 'marcacao' and copy.services %}
+    <section>
+      <h2 class="sec">{{ ui.services }}</h2>
+      <ul class="lista-sobria">
+        {% for title, desc in copy.services %}<li><b>{{ title }}</b><span>{{ desc }}</span></li>{% endfor %}
+      </ul>
+    </section>
+    {% endif %}
 
     <section>
       <div class="sobre">
