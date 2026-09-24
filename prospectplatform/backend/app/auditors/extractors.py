@@ -1,9 +1,20 @@
 """Funcoes puras de extracao usadas pelo WebsiteAuditor (testaveis sem browser)."""
 
+import json
 import re
 from urllib.parse import urlparse
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,24}")
+
+_JSONLD_RE = re.compile(
+    r'<script[^>]*type=["\']application/ld\+json["\'][^>]*>(.*?)</script>', re.I | re.S
+)
+
+_CURRENCY_SYMBOL = {"EUR": "€", "USD": "$", "GBP": "£"}
+
+# Tipos schema.org que valem como "servico com preco". Amplo o bastante pra barbearia
+# (Service), restaurante (MenuItem) e ecommerce (Product), sem tentar adivinhar o resto.
+_OFFER_TYPES = {"Service", "MenuItem", "Product", "Offer"}
 
 _OBFUSCATIONS = [
     (re.compile(r"\s*[\[\(\{]\s*(?:at|arobase|apenstaartje)\s*[\]\)\}]\s*", re.I), "@"),
@@ -186,6 +197,94 @@ def pick_brand_colors(css_colors: list[str], limit: int = 3) -> list[str]:
         counts[hex_color] = counts.get(hex_color, 0) + 1
     ranked = sorted(counts.items(), key=lambda kv: -kv[1])
     return [c for c, _ in ranked[:limit]]
+
+
+def _jsonld_nodes(html: str | None):
+    """Todo objeto de um bloco JSON-LD da pagina, incluindo os que vem dentro de '@graph'."""
+    for block in _JSONLD_RE.findall(html or ""):
+        try:
+            data = json.loads(block)
+        except (json.JSONDecodeError, ValueError, TypeError):
+            continue
+        stack = data if isinstance(data, list) else [data]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, dict):
+                graph = node.get("@graph")
+                if isinstance(graph, list):
+                    stack.extend(graph)
+                yield node
+            elif isinstance(node, list):
+                stack.extend(node)
+
+
+def _format_price(offer: dict) -> str | None:
+    price = offer.get("price")
+    if price is None:
+        spec = offer.get("priceSpecification")
+        if isinstance(spec, dict):
+            price = spec.get("price")
+    if price is None:
+        return None
+    currency = offer.get("priceCurrency") or (offer.get("priceSpecification") or {}).get("priceCurrency")
+    symbol = _CURRENCY_SYMBOL.get(currency, currency or "")
+    return f"{price} {symbol}".strip()
+
+
+def extract_services_prices(html: str | None, limit: int = 6) -> list[tuple[str, str]]:
+    """Servico/produto com preco a partir do JSON-LD (schema.org Service/MenuItem/Product).
+
+    So conta o que o proprio site publicou em formato estruturado: nada de regex em texto
+    livre tentando achar 'algo que parece um preco', que erra tao facil quanto acerta e vira
+    fato inventado na previa. Sem JSON-LD, a lista volta vazia e a previa usa o texto de
+    categoria (design-system.md, secao 8: sem preco coletado, sem preco inventado).
+    """
+    found: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for node in _jsonld_nodes(html):
+        types = node.get("@type")
+        types = types if isinstance(types, list) else [types]
+        if not any(t in _OFFER_TYPES for t in types if isinstance(t, str)):
+            continue
+        name = node.get("name")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        offer = node.get("offers") if isinstance(node.get("offers"), dict) else node
+        price = _format_price(offer) if isinstance(offer, dict) else None
+        if not price or name in seen:
+            continue
+        seen.add(name)
+        found.append((name.strip(), price))
+        if len(found) >= limit:
+            break
+    return found
+
+
+def extract_opening_hours(html: str | None, limit: int = 7) -> list[str]:
+    """Horario de funcionamento a partir do JSON-LD (schema.org openingHoursSpecification).
+
+    Formato bruto do schema.org ('Mo-Fr 09:00-18:00'): a previa mostra o que o site publicou,
+    nunca traduz dia da semana nem infere 'aberto agora' por conta propria.
+    """
+    found: list[str] = []
+    seen: set[str] = set()
+    for node in _jsonld_nodes(html):
+        spec = node.get("openingHours") or node.get("openingHoursSpecification")
+        items = spec if isinstance(spec, list) else ([spec] if spec else [])
+        for item in items:
+            if isinstance(item, str):
+                line = item.strip()
+            elif isinstance(item, dict):
+                days = item.get("dayOfWeek")
+                days = ", ".join(days) if isinstance(days, list) else (days or "")
+                opens, closes = item.get("opens"), item.get("closes")
+                line = f"{days} {opens}-{closes}".strip() if opens and closes else ""
+            else:
+                line = ""
+            if line and line not in seen:
+                seen.add(line)
+                found.append(line)
+    return found[:limit]
 
 
 def clean_about_snippet(text: str | None, max_len: int = 320) -> str | None:
