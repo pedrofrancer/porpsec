@@ -4,14 +4,17 @@ Nada e inventado: sem logo vira logotipo tipografico com o nome, sem cores vira 
 do "mood" da categoria, sem foto propria vira foto de banco rotulada como ilustrativa.
 """
 
+import hashlib
 import json
 import logging
+import random
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import httpx
 import yaml
 
+from app.branding.oklch import hex_to_oklch, oklch_to_hex
 from app.core.config import settings
 from app.core.countries import search_term
 from app.i18n import lang_key
@@ -48,6 +51,35 @@ def category_palette(slug: str, language: str) -> tuple[str, str, str, str]:
     if isinstance(entry, dict):
         return entry.get(lang_key(language), entry["fr"])
     return entry
+
+
+def company_seed(company) -> int:
+    """Semente estavel por empresa: place_id do Google (o mais estavel, sobrevive a reimport),
+    senao o id, senao o nome. hashlib e nao o hash() nativo, que muda de processo pra processo
+    e quebraria a variacao entre uma renderizacao e a proxima da mesma empresa."""
+    key = getattr(company, "google_place_id", None) or str(getattr(company, "id", "") or "") or company.name
+    return int(hashlib.sha256(key.encode("utf-8")).hexdigest()[:12], 16)
+
+
+def _jitter_hex(hex_color: str, rng: random.Random,
+                 hue_range: float = 14.0, light_range: float = 0.035, chroma_scale: float = 0.15) -> str:
+    """Desvia a cor em OKLCH (design-system.md, secao 3): mesma familia do material do oficio,
+    tom proprio por empresa. Faixas pequenas de proposito, pra continuar lendo como o mesmo
+    couro/azulejo/ardosia da categoria, nao uma cor qualquer sorteada."""
+    L, c, h = hex_to_oklch(hex_color)
+    h2 = (h + rng.uniform(-hue_range, hue_range)) % 360
+    l2 = max(0.0, min(1.0, L + rng.uniform(-light_range, light_range)))
+    c2 = max(0.0, c * (1 + rng.uniform(-chroma_scale, chroma_scale)))
+    return oklch_to_hex(l2, c2, h2)
+
+
+def varied_category_palette(slug: str, language: str, seed: int) -> tuple[str, str, str, str]:
+    """category_palette() com primaria e acento variados por empresa (seed). Fundo e texto ficam
+    fixos: sao o par ja conferido em AA (test_paletas_de_reserva_passam_aa), e variar so a cor do
+    material evita qualquer risco de estourar contraste."""
+    primary, accent, background, text = category_palette(slug, language)
+    rng = random.Random(seed)
+    return _jitter_hex(primary, rng), _jitter_hex(accent, rng), background, text
 
 
 @dataclass
@@ -133,7 +165,7 @@ def build_brand_kit(company, audit, language: str, photo_source=pexels_photos) -
     slug = company.category.slug if company.category else "_default"
     cat = category_copy(copy, slug)
     mood = cat["mood"]
-    primary, accent, background, text = category_palette(slug, language)
+    primary, accent, background, text = varied_category_palette(slug, language, company_seed(company))
 
     site_colors = json.loads(audit.dominant_colors) if audit and audit.dominant_colors else []
     if site_colors:
