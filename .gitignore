@@ -20,3 +20,8 @@ prospectplatform/backend/msg_*.txt
 prospectplatform/backend/test_outreach.txt
 backend/.env
 prospectplatform/previews_site/
+
+# docs internos, fora do repo publico
+prospectplatform/prd.md
+prospectplatform/techspec.md
+prospectplatform/design-system.md
