@@ -101,6 +101,7 @@ class BrandKit:
     background: str
     text: str
     logo_url: str | None = None
+    logo_is_light: bool | None = None  # logo claro/branco: precisa de fundo escuro por cima
     hero: Photo | None = None
     gallery: list[Photo] = field(default_factory=list)
     stock_photos: bool = False
@@ -199,6 +200,7 @@ def build_brand_kit(company, audit, language: str, photo_source=pexels_photos) -
         background=background,
         text=text,
         logo_url=audit.logo_url if audit else None,
+        logo_is_light=getattr(audit, "logo_is_light", None),
         hero=hero,
         gallery=gallery,
         stock_photos=stock,

@@ -32,6 +32,7 @@ class AuditResult:
     emails_found: list[str] = field(default_factory=list)
     legal_entity_signal: str | None = None
     logo_url: str | None = None
+    logo_is_light: bool | None = None  # logo claro/branco, precisa de fundo escuro pra nao sumir
     dominant_colors: list[str] = field(default_factory=list)
     og_image_url: str | None = None
     about_snippet: str | None = None

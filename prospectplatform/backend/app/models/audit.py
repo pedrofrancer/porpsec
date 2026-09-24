@@ -47,6 +47,7 @@ class Audit(Base):
 
     # IDENTIDADE VISUAL (usada pelo BrandKitExtractor na hora da previa)
     logo_url: Mapped[str | None] = mapped_column(String(1000))
+    logo_is_light: Mapped[bool | None] = mapped_column(Boolean)  # precisa de chip escuro por cima
     dominant_colors: Mapped[str | None] = mapped_column(Text)  # JSON list de hex
     og_image_url: Mapped[str | None] = mapped_column(String(1000))
     about_snippet: Mapped[str | None] = mapped_column(Text)

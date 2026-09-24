@@ -68,6 +68,18 @@ def test_foto_de_banco_vem_rotulada():
     assert 'class="rotulo"' in page
 
 
+def test_logo_claro_ganha_chip_escuro_pra_nao_sumir_no_fundo():
+    page = html(logo_url="https://x/logo-branca.svg", logo_is_light=True)
+    assert 'class="logo-claro"' in page
+
+
+def test_logo_normal_nao_ganha_chip():
+    page = html(logo_url="https://x/logo.png", logo_is_light=False)
+    assert 'class="logo-claro"' not in page
+    page = html(logo_url="https://x/logo.png", logo_is_light=None)
+    assert 'class="logo-claro"' not in page
+
+
 def test_texto_do_site_entra_entre_aspas_do_idioma():
     assert "« Depuis toujours au coin de la rue. »" in html(about_snippet="Depuis toujours au coin de la rue.")
     assert "«Desde sempre na esquina.»" in html(language="pt-PT", about_snippet="Desde sempre na esquina.")

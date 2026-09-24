@@ -47,6 +47,29 @@ _BRAND_JS = r"""() => {
         logoSrc = icon ? icon.getAttribute('href') : null;
     }
     data.logo = logoSrc;
+    // Logo branco/claro pensado pra cabecalho escuro do site original fica invisivel no nosso
+    // fundo claro. Amostra a luminancia media do logo renderizado (canvas 24x24, ignora pixel
+    // quase transparente); null quando nao da pra saber (sem imagem carregada, ou canvas
+    // "sujo" por CORS do host do logo, que bloqueia a leitura de pixel).
+    data.logo_is_light = null;
+    if (logo) {
+        try {
+            const w = 24, h = 24;
+            const canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(logo, 0, 0, w, h);
+            const px = ctx.getImageData(0, 0, w, h).data;
+            let lumaSum = 0, alphaSum = 0;
+            for (let i = 0; i < px.length; i += 4) {
+                const a = px[i + 3] / 255;
+                if (a < 0.15) continue;
+                lumaSum += ((0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2]) / 255) * a;
+                alphaSum += a;
+            }
+            if (alphaSum > 0) data.logo_is_light = (lumaSum / alphaSum) > 0.78;
+        } catch (e) { /* canvas sujo por CORS: fica null, sem chip */ }
+    }
 
     const og = document.querySelector('meta[property="og:image"], meta[name="og:image"], meta[name="twitter:image"]');
     data.og_image = og ? og.getAttribute('content') : null;
@@ -273,6 +296,7 @@ class WebsiteAuditor(BaseAuditor):
 
         logo = data.get("logo")
         result.logo_url = urljoin(url, logo) if logo else None
+        result.logo_is_light = data.get("logo_is_light")
         og = data.get("og_image")
         result.og_image_url = urljoin(url, og) if og else None
         result.dominant_colors = pick_brand_colors(data.get("colors", []))
@@ -538,6 +562,7 @@ class WebsiteAuditor(BaseAuditor):
             emails_found=json.dumps(result.emails_found) if result.emails_found else None,
             legal_entity_signal=result.legal_entity_signal,
             logo_url=result.logo_url,
+            logo_is_light=result.logo_is_light,
             dominant_colors=json.dumps(result.dominant_colors) if result.dominant_colors else None,
             og_image_url=result.og_image_url,
             about_snippet=result.about_snippet,
