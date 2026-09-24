@@ -137,3 +137,33 @@ def test_pousada_sem_frase_sobre_cai_na_tabela_de_servicos():
     page = html(slug="pousada")
     assert 'class="objeto objeto-livro"' not in page
     assert 'class="objeto objeto-tabela"' in page
+
+
+def test_pousada_com_about_nao_repete_a_frase_na_secao_sobre():
+    page = html(slug="pousada", about_snippet="Casa antiga junto ao rio, aberta desde sempre.")
+    assert page.count("Casa antiga junto ao rio, aberta desde sempre.") == 1
+
+
+def test_servico_real_coletado_ganha_do_texto_de_categoria():
+    page = html(slug="barbearia", services=[("Corte", "18 €"), ("Barba", "12 €")])
+    assert "<b>Corte</b>" in page
+    assert "18 €" in page
+    # o texto de categoria (generico) some quando ha dado real
+    assert "Aux ciseaux ou à la tondeuse" not in page
+
+
+def test_sem_servico_coletado_usa_texto_de_categoria():
+    page = html(slug="barbearia")
+    assert "Aux ciseaux ou à la tondeuse" in page
+
+
+def test_horario_coletado_aparece_no_contato():
+    page = html(hours=["Mo-Fr 09:00-18:00", "Sa 09:00-12:00"])
+    assert "Mo-Fr 09:00-18:00" in page
+    assert "Sa 09:00-12:00" in page
+
+
+def test_sem_horario_nao_mostra_linha_nem_inventa_aberto_agora():
+    page = html()
+    assert "aberto agora" not in page.lower()
+    assert "open now" not in page.lower()

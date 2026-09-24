@@ -81,6 +81,8 @@ class BrandKit:
     rating: float | None = None
     review_count: int | None = None
     brand_colors_from_site: bool = False
+    services: list[tuple[str, str]] = field(default_factory=list)  # [(nome, preco), ...], do site
+    hours: list[str] = field(default_factory=list)  # linhas de horario, formato bruto do site
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -177,4 +179,6 @@ def build_brand_kit(company, audit, language: str, photo_source=pexels_photos) -
         rating=company.google_rating,
         review_count=company.google_review_count,
         brand_colors_from_site=bool(site_colors),
+        services=[tuple(item) for item in json.loads(getattr(audit, "services_json", None) or "[]")],
+        hours=json.loads(getattr(audit, "opening_hours_json", None) or "[]"),
     )

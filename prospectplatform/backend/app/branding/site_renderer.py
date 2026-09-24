@@ -95,11 +95,13 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
     values = {"name": kit.name, "city": kit.city, "category": kit.category_label.capitalize(),
               "brand": sender_brand or "", "credit": ", ".join(sorted({p.credit for p in kit.gallery if p.credit}))}
     ui = {k: _fmt(v, **values) if k not in ("rating",) else v for k, v in ui_raw.items()}
+    # Servico e preco reais do site (JSON-LD) ganham do texto de categoria; sem coleta, cai no
+    # texto de categoria como sempre caiu (design-system.md, secao 8: sem preco, sem invencao).
     page_copy = {
         "tagline": _fmt(cat_lang["tagline"], **values),
         "cta": cat_lang["cta"],
         "about": _fmt(cat_lang["about"], **values),
-        "services": cat_lang.get("services", []),
+        "services": kit.services if kit.services else cat_lang.get("services", []),
     }
 
     rating_line = None

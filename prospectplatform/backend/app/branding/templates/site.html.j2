@@ -135,7 +135,8 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
     <section>
       <div class="sobre">
         <h2 class="sec">{{ kit.category_label|capitalize }}, {{ kit.city }}</h2>
-        {% if kit.about_snippet %}
+        {% if kit.about_snippet and objeto != 'livro' %}
+        {# Na pousada a frase "sobre" ja abriu a pagina (objeto-livro); nao repete aqui. #}
         <blockquote>{{ quotes[0] }}{{ kit.about_snippet }}{{ quotes[1] }}<cite>{{ kit.name }}</cite></blockquote>
         {% else %}
         <p class="lead">{{ copy.about }}</p>
@@ -160,6 +161,7 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
           {% if kit.phone %}<div><dt>{{ ui.call }}</dt><dd><a href="tel:{{ kit.phone|replace(' ', '') }}">{{ kit.phone }}</a></dd></div>{% endif %}
           {% if kit.email %}<div><dt>{{ ui.write }}</dt><dd><a href="mailto:{{ kit.email }}">{{ kit.email }}</a></dd></div>{% endif %}
           {% if kit.instagram %}<div><dt>Instagram</dt><dd>{{ kit.instagram }}</dd></div>{% endif %}
+          {% if kit.hours %}<div><dt>{{ ui.hours }}</dt><dd>{% for line in kit.hours %}{{ line }}{% if not loop.last %}<br>{% endif %}{% endfor %}</dd></div>{% endif %}
         </dl>
       </div>
     </section>

@@ -35,6 +35,8 @@ class AuditResult:
     dominant_colors: list[str] = field(default_factory=list)
     og_image_url: str | None = None
     about_snippet: str | None = None
+    services: list[tuple[str, str]] = field(default_factory=list)
+    opening_hours: list[str] = field(default_factory=list)
     raw_data: dict = field(default_factory=dict)
 
 

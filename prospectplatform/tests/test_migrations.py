@@ -11,7 +11,8 @@ import app.models  # noqa: F401
 NEW_COMPANY_COLS = ("email", "email_source", "preferred_channel")
 NEW_MESSAGE_COLS = ("channel", "message_type", "subject", "language", "thread_id")
 NEW_AUDIT_COLS = ("site_lang", "emails_found", "legal_entity_signal", "logo_url",
-                  "dominant_colors", "og_image_url", "about_snippet")
+                  "dominant_colors", "og_image_url", "about_snippet",
+                  "services_json", "opening_hours_json")
 
 
 def _url(tmp_path, name):
