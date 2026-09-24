@@ -4,76 +4,193 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ProspectPlatform</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        /* Tokens: design-system.md, parte II (seções 11 a 14). Nenhum hex fora deste bloco. */
+        :root {
+            --primary: #7367F0;
+            --primary-darken-1: #675DD8;
+            --secondary: #808390;
+            --success: #28C76F;
+            --info: #00BAD1;
+            --warning: #FF9F43;
+            --error: #FF4C51;
+
+            /* Texto colorido: cor + 40% de branco (AA sobre surface e sobre o chip tonal). */
+            --primary-texto: #ABA4F6;
+            --secondary-texto: #B3B5BC;
+            --success-texto: #7EDDA9;
+            --info-texto: #66D6E3;
+            --warning-texto: #FFC58E;
+            --error-texto: #FF9497;
+
+            /* Fundo do chip e do botão tonal: cor a 16% sobre surface. */
+            --primary-tonal: #3A3B64;
+            --secondary-tonal: #3C4054;
+            --success-tonal: #2E4B4F;
+            --info-tonal: #27495F;
+            --warning-tonal: #504448;
+            --error-tonal: #50374A;
+
+            --background: #25293C;
+            --surface: #2F3349;
+            --on-surface: 225, 222, 245;
+            --texto: rgba(var(--on-surface), 0.9);
+            --texto-medio: rgba(var(--on-surface), 0.7);
+            --texto-desabilitado: rgba(var(--on-surface), 0.4);
+            --borda: rgba(var(--on-surface), 0.12);
+            --borda-campo: rgba(var(--on-surface), 0.22);
+            --borda-campo-hover: rgba(var(--on-surface), 0.6);
+            --hover: rgba(var(--on-surface), 0.06);
+            --tabela-cabecalho: #535876;
+            --trilho: #3A3F57;
+            --scrim: rgba(23, 25, 37, 0.6);
+            --tooltip: #F7F4FF;
+            --branco: #FFFFFF;
+
+            --fonte: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --raio: 6px;
+            --raio-sm: 4px;
+            --raio-lg: 8px;
+            --sombra-botao: 0 2px 6px 0 rgba(103, 93, 216, 0.3);
+            --sombra-botao-hover: 0 4px 16px 0 rgba(103, 93, 216, 0.4);
+            --transicao: 0.135s ease;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0; }
-        .header { background: #1e293b; padding: 1rem 2rem; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
-        .header h1 { font-size: 1.25rem; color: #38bdf8; }
-        .nav { display: flex; gap: 0.5rem; }
-        .nav-btn { background: transparent; border: 1px solid #475569; color: #94a3b8; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-        .nav-btn.active { background: #2563eb; border-color: #2563eb; color: white; }
-        .nav-btn:hover { border-color: #38bdf8; color: #e2e8f0; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        body { font-family: var(--fonte); font-size: 0.9375rem; line-height: 1.375rem; background: var(--background); color: var(--texto); }
+        a { color: var(--primary-texto); }
+        .stat-card .number, td { font-variant-numeric: tabular-nums; }
+
+        /* Navbar e abas */
+        .header { position: sticky; top: 0; z-index: 11; min-height: 64px; background: var(--surface); border-bottom: 1px solid var(--borda); padding: 0 1.5rem; display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+        .header h1 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; color: var(--primary-texto); }
+        .nav { display: flex; gap: 0.25rem; overflow-x: auto; align-self: stretch; }
+        .nav-btn { background: transparent; border: none; border-bottom: 3px solid transparent; color: var(--texto); padding: 0 0.875rem; min-height: 42px; font: inherit; font-weight: 500; cursor: pointer; white-space: nowrap; transition: color var(--transicao), border-color var(--transicao); }
+        .nav-btn:hover { color: var(--primary-texto); }
+        .nav-btn.active { color: var(--primary-texto); border-bottom-color: var(--primary); }
+
+        .container { max-width: 1440px; margin: 0 auto; padding: 1.5rem; }
         .page { display: none; }
         .page.active { display: block; }
-        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .stat-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; text-align: center; }
-        .stat-card .number { font-size: 1.8rem; font-weight: 700; color: #38bdf8; }
-        .stat-card .label { font-size: 0.75rem; color: #94a3b8; margin-top: 0.25rem; }
-        .filters { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: end; }
+
+        /* Cartões */
+        .card { background: var(--surface); border: 1px solid var(--borda); border-radius: var(--raio); padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .card-title, .section-title { font-size: 1.125rem; line-height: 1.75rem; font-weight: 500; color: var(--texto); }
+        .section-title { margin: 0 0 1rem; }
+        .table-wrap + .section-title { margin-top: 1.5rem; }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.5rem; margin-bottom: 1.5rem; }
+        .card .stats { margin-bottom: 0; }
+        .stat-card { background: var(--surface); border: 1px solid var(--borda); border-radius: var(--raio); padding: 1.5rem; }
+        .stat-card .number { font-size: 1.5rem; line-height: 2.375rem; font-weight: 500; color: var(--texto); overflow-wrap: anywhere; }
+        .stat-card .label { font-size: 0.9375rem; color: var(--texto-medio); }
+
+        /* Campos */
+        input[type="text"], input:not([type]), select, textarea { font: inherit; font-size: 0.9375rem; background: transparent; color: var(--texto); border: 1px solid var(--borda-campo); border-radius: var(--raio); padding: 0.5rem 0.875rem; min-height: 40px; transition: border-color var(--transicao); }
+        select option { background: var(--surface); color: var(--texto); }
+        input:hover, select:hover, textarea:hover { border-color: var(--borda-campo-hover); }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+        input::placeholder, textarea::placeholder { color: var(--texto-desabilitado); }
+        .field-full { width: 100%; margin-bottom: 0.75rem; }
+
+        .filters { background: var(--surface); border: 1px solid var(--borda); border-radius: var(--raio); padding: 1.5rem; margin-bottom: 1.5rem; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; align-items: end; }
         .filter-group { display: flex; flex-direction: column; gap: 0.25rem; }
-        .filter-group label { font-size: 0.75rem; color: #94a3b8; }
-        .filter-group select, .filter-group input { background: #0f172a; border: 1px solid #475569; color: #e2e8f0; padding: 0.5rem; border-radius: 4px; font-size: 0.85rem; }
-        .btn { background: #2563eb; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; }
-        .btn:hover { background: #1d4ed8; }
-        .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.75rem; }
-        .btn-success { background: #16a34a; }
-        .btn-success:hover { background: #15803d; }
-        .btn-warning { background: #d97706; }
-        .btn-warning:hover { background: #b45309; }
-        .btn-danger { background: #dc2626; }
-        .btn-danger:hover { background: #b91c1c; }
-        .btn-outline { background: transparent; border: 1px solid #475569; color: #94a3b8; }
-        .btn-outline:hover { border-color: #38bdf8; color: #e2e8f0; }
-        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 8px; overflow: hidden; border: 1px solid #334155; }
-        th { background: #334155; text-align: left; padding: 0.75rem 1rem; font-size: 0.75rem; color: #94a3b8; text-transform: uppercase; }
-        td { padding: 0.75rem 1rem; border-top: 1px solid #334155; font-size: 0.85rem; }
-        tr:hover td { background: #1a2332; }
-        .score { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-weight: 600; font-size: 0.8rem; }
-        .score-high { background: #166534; color: #4ade80; }
-        .score-mid { background: #854d0e; color: #facc15; }
-        .score-low { background: #991b1b; color: #fca5a5; }
-        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 100; justify-content: center; align-items: center; }
+        .filter-group label { font-size: 0.8125rem; color: var(--texto-medio); }
+        .form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+        .form-row input { flex: 1 1 220px; }
+
+        /* Botões */
+        .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; padding: 0 1.25rem; border: none; border-radius: var(--raio); font: inherit; font-weight: 500; line-height: 1.125rem; cursor: pointer; background: var(--primary-darken-1); color: var(--branco); box-shadow: var(--sombra-botao); transition: background var(--transicao), color var(--transicao), transform var(--transicao); }
+        .btn:hover { box-shadow: var(--sombra-botao-hover); }
+        .btn:active { transform: scale(0.98); }
+        .btn:focus-visible, .nav-btn:focus-visible, .pagination button:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+        .btn-sm { min-height: 30px; padding: 0 0.75rem; font-size: 0.8125rem; }
+        .btn-success, .btn-warning, .btn-danger, .btn-outline { box-shadow: none; }
+        .btn-success { background: var(--success-tonal); color: var(--success-texto); }
+        .btn-warning { background: var(--warning-tonal); color: var(--warning-texto); }
+        .btn-danger { background: var(--error-tonal); color: var(--error-texto); }
+        .btn-success:hover, .btn-warning:hover, .btn-danger:hover { filter: brightness(1.15); }
+        .btn-outline { background: transparent; border: 1px solid var(--borda-campo); color: var(--texto); }
+        .btn-outline:hover { background: var(--hover); border-color: var(--borda-campo-hover); }
+        .acoes { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+        /* Tabela: rola dentro do próprio cartão */
+        .table-wrap { background: var(--surface); border: 1px solid var(--borda); border-radius: var(--raio); overflow-x: auto; margin-bottom: 1.5rem; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: var(--tabela-cabecalho); color: var(--texto); text-align: left; padding: 0.75rem 1rem; font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.2px; text-transform: uppercase; white-space: nowrap; }
+        td { height: 50px; padding: 0.5rem 1rem; border-top: 1px solid var(--borda); color: var(--texto-medio); vertical-align: middle; }
+        th:first-child, td:first-child { padding-left: 1.5rem; }
+        th:last-child, td:last-child { padding-right: 1.5rem; }
+        td strong { color: var(--texto); font-weight: 500; }
+        tr:hover td { background: var(--hover); }
+        td.empty { text-align: center; color: var(--texto-medio); }
+        .truncate { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .quebra { max-width: 360px; white-space: pre-wrap; font-size: 0.8125rem; }
+        .sub { display: block; color: var(--texto-medio); font-size: 0.8125rem; }
+        .erro-linha { display: block; color: var(--error-texto); font-size: 0.8125rem; }
+
+        /* Chip de status (seção 15) */
+        .chip { display: inline-flex; align-items: center; min-height: 24px; padding: 0 0.5rem; border-radius: var(--raio-sm); font-size: 0.8125rem; font-weight: 500; line-height: 1.25rem; white-space: nowrap; }
+        .chip-primary { background: var(--primary-tonal); color: var(--primary-texto); }
+        .chip-secondary { background: var(--secondary-tonal); color: var(--secondary-texto); }
+        .chip-success { background: var(--success-tonal); color: var(--success-texto); }
+        .chip-info { background: var(--info-tonal); color: var(--info-texto); }
+        .chip-warning { background: var(--warning-tonal); color: var(--warning-texto); }
+        .chip-error { background: var(--error-tonal); color: var(--error-texto); }
+        .text-success, .ok { color: var(--success-texto); }
+        .text-warning, .warn { color: var(--warning-texto); }
+        .text-error, .bad { color: var(--error-texto); }
+        .muted { color: var(--texto-medio); }
+
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: var(--scrim); z-index: 100; justify-content: center; align-items: center; padding: 1rem; }
         .modal-overlay.active { display: flex; }
-        .modal { background: #1e293b; border: 1px solid #475569; border-radius: 12px; padding: 1.5rem; max-width: 700px; width: 95%; max-height: 85vh; overflow-y: auto; }
-        .modal h2 { color: #38bdf8; margin-bottom: 1rem; font-size: 1.1rem; }
-        .modal h3 { color: #38bdf8; margin: 1rem 0 0.5rem; font-size: 0.95rem; }
-        .modal p { margin-bottom: 0.5rem; line-height: 1.5; font-size: 0.85rem; }
-        .modal .field-label { color: #94a3b8; }
-        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; justify-content: flex-end; flex-wrap: wrap; }
-        .upload-area { background: #0f172a; border: 2px dashed #475569; border-radius: 8px; padding: 2rem; text-align: center; cursor: pointer; margin-bottom: 1.5rem; }
-        .upload-area:hover { border-color: #38bdf8; }
-        .upload-area p { color: #94a3b8; }
-        .toast { position: fixed; bottom: 2rem; right: 2rem; background: #16a34a; color: white; padding: 0.75rem 1.5rem; border-radius: 8px; display: none; z-index: 200; font-size: 0.85rem; }
-        .toast.error { background: #dc2626; }
-        .pagination { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
-        .pagination button { background: #334155; border: none; color: #e2e8f0; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
-        .pagination button.active { background: #2563eb; }
-        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .issue { background: #991b1b33; border-left: 3px solid #dc2626; padding: 0.4rem 0.6rem; margin: 0.3rem 0; border-radius: 0 4px 4px 0; font-size: 0.8rem; }
-        .ok { color: #4ade80; }
-        .warn { color: #facc15; }
-        .bad { color: #f87171; }
-        .diag-section { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
-        .diag-section h4 { color: #38bdf8; font-size: 0.85rem; margin-bottom: 0.5rem; }
-        .diag-row { display: flex; justify-content: space-between; padding: 0.3rem 0; font-size: 0.8rem; border-bottom: 1px solid #1e293b; }
-        .outreach-box { background: #0f172a; border: 1px solid #334155; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; }
-        .badge { display: inline-block; padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; }
-        .badge-alta { background: #991b1b; color: #fca5a5; }
-        .badge-media { background: #854d0e; color: #facc15; }
-        .badge-baixa { background: #166534; color: #4ade80; }
-        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #475569; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.6s linear infinite; }
+        .modal { background: var(--surface); border: 1px solid var(--borda); border-radius: var(--raio); padding: 1.5rem; max-width: 700px; width: 100%; max-height: 85vh; overflow-y: auto; }
+        .modal h2 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 500; color: var(--texto); margin-bottom: 1rem; }
+        .modal h3 { font-size: 0.9375rem; font-weight: 500; color: var(--texto); margin: 1.25rem 0 0.5rem; }
+        .modal h3 a { font-size: 0.8125rem; font-weight: 400; }
+        .modal p { margin-bottom: 0.5rem; }
+        .modal .field-label { color: var(--texto-medio); }
+        .modal-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; justify-content: flex-end; flex-wrap: wrap; }
+        .ajuda { font-size: 0.8125rem; color: var(--texto-medio); }
+        .preview-frame { width: 100%; height: 420px; border: 1px solid var(--borda); border-radius: var(--raio); background: var(--branco); }
+
+        .diag-section { border: 1px solid var(--borda); border-radius: var(--raio); padding: 1rem; margin: 0.75rem 0; }
+        .diag-section h4 { font-size: 0.9375rem; font-weight: 500; color: var(--texto); margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+        .diag-row { display: flex; justify-content: space-between; gap: 1rem; padding: 0.375rem 0; border-bottom: 1px solid var(--borda); }
+        .diag-row:last-child { border-bottom: none; }
+        .recomendacao { margin: 0.5rem 0; }
+        .recomendacao strong { font-weight: 500; }
+        .outreach-box { border: 1px solid var(--borda); border-radius: var(--raio); padding: 1rem; margin: 0.75rem 0; line-height: 1.6; white-space: pre-wrap; }
+
+        /* Upload */
+        .upload-area { border: 2px dashed var(--borda-campo); border-radius: var(--raio); padding: 2rem; text-align: center; cursor: pointer; transition: border-color var(--transicao); }
+        .upload-area:hover, .upload-area.drag { border-color: var(--primary); }
+        .upload-area p { color: var(--texto-medio); }
+
+        /* Aviso */
+        .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; left: auto; max-width: calc(100% - 3rem); min-height: 44px; background: var(--tooltip); color: var(--surface); padding: 0.75rem 1rem; border-radius: var(--raio); display: none; z-index: 200; font-size: 0.8125rem; font-weight: 500; }
+        .toast.error { box-shadow: inset 4px 0 0 var(--error); padding-left: 1.25rem; }
+
+        .pagination { display: flex; gap: 0.1875rem; justify-content: center; flex-wrap: wrap; margin-top: -0.5rem; }
+        .pagination button { min-width: 38px; min-height: 38px; background: var(--secondary-tonal); border: none; color: var(--texto); border-radius: var(--raio); cursor: pointer; font: inherit; }
+        .pagination button.active { background: var(--primary-darken-1); color: var(--branco); }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--trilho); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 600px) {
+            .header, .container { padding-left: 1rem; padding-right: 1rem; }
+            .stats { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            * { transition: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -94,21 +211,21 @@
         <div class="page active" id="page-dashboard">
             <div class="stats" id="stats"></div>
 
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.5rem">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
-                    <h3 style="color:#38bdf8;font-size:0.95rem">Dispatcher</h3>
-                    <div style="display:flex;gap:0.5rem">
+            <div class="card">
+                <div class="card-head">
+                    <h3 class="card-title">Dispatcher</h3>
+                    <div class="acoes">
                         <button class="btn btn-sm btn-success" onclick="dispatcherAction('resume')">Iniciar</button>
                         <button class="btn btn-sm btn-warning" onclick="dispatcherAction('pause')">Pausar</button>
                         <button class="btn btn-sm" onclick="dispatcherAction('run')">Ciclo manual</button>
                     </div>
                 </div>
-                <div class="stats" id="dispatcherStatus" style="margin-bottom:0"></div>
+                <div class="stats" id="dispatcherStatus"></div>
             </div>
 
             <div class="upload-area" id="uploadArea">
                 <p>Clique ou arraste um CSV para importar empresas</p>
-                <input type="file" id="csvInput" accept=".csv" style="display:none">
+                <input type="file" id="csvInput" accept=".csv" hidden>
             </div>
         </div>
 
@@ -129,7 +246,7 @@
                 </div>
                 <button class="btn" onclick="loadCompanies()">Filtrar</button>
             </div>
-            <table>
+            <div class="table-wrap"><table>
                 <thead>
                     <tr>
                         <th>Nome</th>
@@ -141,14 +258,14 @@
                     </tr>
                 </thead>
                 <tbody id="companiesTable"></tbody>
-            </table>
+            </table></div>
             <div class="pagination" id="pagination"></div>
         </div>
 
         <!-- FILA -->
         <div class="page" id="page-queue">
             <div class="stats" id="queueStats"></div>
-            <table>
+            <div class="table-wrap"><table>
                 <thead>
                     <tr>
                         <th>Empresa</th>
@@ -158,20 +275,20 @@
                     </tr>
                 </thead>
                 <tbody id="queueTable"></tbody>
-            </table>
+            </table></div>
         </div>
 
         <!-- OPT-OUT -->
         <div class="page" id="page-optout">
-            <div style="margin-bottom:1rem">
-                <h3 style="color:#38bdf8;margin-bottom:0.5rem">Registrar Opt-out</h3>
-                <div style="display:flex;gap:0.5rem">
-                    <input type="text" id="optoutId" placeholder="Telefone ou @instagram" style="background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;flex:1">
-                    <input type="text" id="optoutReason" placeholder="Motivo (opcional)" style="background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;flex:1">
+            <div class="card">
+                <div class="card-head"><h3 class="card-title">Registrar opt-out</h3></div>
+                <div class="form-row">
+                    <input type="text" id="optoutId" placeholder="Telefone ou @instagram">
+                    <input type="text" id="optoutReason" placeholder="Motivo (opcional)">
                     <button class="btn btn-danger" onclick="addOptOut()">Registrar</button>
                 </div>
             </div>
-            <table>
+            <div class="table-wrap"><table>
                 <thead>
                     <tr>
                         <th>Identificador</th>
@@ -181,22 +298,22 @@
                     </tr>
                 </thead>
                 <tbody id="optoutTable"></tbody>
-            </table>
+            </table></div>
         </div>
 
         <!-- RESPOSTAS E PREVIAS -->
         <div class="page" id="page-respostas">
             <div class="stats" id="replyStats"></div>
-            <h3 style="color:#38bdf8;margin:0 0 0.75rem">Prévias de site</h3>
-            <table>
+            <h3 class="section-title">Prévias de site</h3>
+            <div class="table-wrap"><table>
                 <thead><tr><th>Empresa</th><th>Status</th><th>Resposta recebida</th><th>Gerada</th><th>Link público</th><th>Ações</th></tr></thead>
                 <tbody id="previewTable"></tbody>
-            </table>
-            <h3 style="color:#38bdf8;margin:1.5rem 0 0.75rem">Respostas recebidas</h3>
-            <table>
+            </table></div>
+            <h3 class="section-title">Respostas recebidas</h3>
+            <div class="table-wrap"><table>
                 <thead><tr><th>Empresa</th><th>Tipo</th><th>De</th><th>Texto</th><th>Recebida</th></tr></thead>
                 <tbody id="replyTable"></tbody>
-            </table>
+            </table></div>
         </div>
 
         <!-- ENVIOS -->
@@ -216,7 +333,7 @@
                 </div>
                 <button class="btn" onclick="loadMessages()">Filtrar</button>
             </div>
-            <table>
+            <div class="table-wrap"><table>
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -229,7 +346,7 @@
                     </tr>
                 </thead>
                 <tbody id="msgTable"></tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 
@@ -281,10 +398,28 @@
             return String(v ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
         }
 
-        function scoreClass(score) {
-            if (score >= 70) return 'score-high';
-            if (score >= 40) return 'score-mid';
-            return 'score-low';
+        // Cor semântica única por status (design-system.md, seção 15).
+        const STATUS_COR = {
+            enviado: 'success', publicado: 'success', aprovado: 'success', reply: 'success',
+            rascunho: 'warning', pendente: 'warning',
+            erro: 'error', erro_envio: 'error', erro_validacao: 'error', opt_out: 'error', bounce: 'error',
+            descartado: 'secondary', expirado: 'secondary'
+        };
+        const PRIORIDADE_COR = { alta: 'error', media: 'warning', baixa: 'info' };
+
+        function corDoStatus(status) {
+            const k = String(status || '').toLowerCase();
+            return STATUS_COR[k] || (k.startsWith('erro') ? 'error' : 'secondary');
+        }
+
+        function corDoScore(score) {
+            if (score >= 70) return 'success';
+            if (score >= 40) return 'warning';
+            return 'error';
+        }
+
+        function chip(texto, cor) {
+            return `<span class="chip chip-${cor}">${esc(texto)}</span>`;
         }
 
         function formatDate(d) {
@@ -363,13 +498,13 @@
                     <td>${esc(c.city_name || c.city_id)}</td>
                     <td>${esc(c.category_name || c.category_id)}</td>
                     <td>${esc(c.email || c.phone || '-')}</td>
-                    <td>${c.google_rating ? `<span class="score ${scoreClass(c.google_rating * 20)}">${c.google_rating}</span>` : '<span style="color:#64748b">-</span>'}</td>
-                    <td>
+                    <td>${c.google_rating ? chip(c.google_rating, corDoScore(c.google_rating * 20)) : '<span class="muted">-</span>'}</td>
+                    <td><div class="acoes">
                         <button class="btn btn-sm" onclick="viewCompany(${c.id})">Detalhes</button>
                         <button class="btn btn-sm btn-outline" onclick="runAudit(${c.id})">Auditar</button>
                         <button class="btn btn-sm btn-success" onclick="getOutreach(${c.id})">Abordagem</button>
                         <button class="btn btn-sm btn-warning" onclick="addToQueue(${c.id})">+Fila</button>
-                    </td>
+                    </div></td>
                 </tr>
             `).join('');
 
@@ -387,7 +522,7 @@
         async function viewCompany(id) {
             try {
                 const c = await api(`/companies/${id}`);
-                let diagHtml = '<p style="color:#94a3b8">Clique em "Diagnosticar" para carregar o diagnostico completo.</p>';
+                let diagHtml = '<p class="muted">Clique em "Diagnosticar" para carregar o diagnostico completo.</p>';
                 try {
                     const d = await api(`/companies/${id}/diagnosis`);
                     diagHtml = renderDiagnosis(d);
@@ -426,7 +561,7 @@
             const ca = d.communication_automation;
             let html = '';
 
-            html += `<div class="diag-section"><h4>Score Digital: <span class="score ${scoreClass(dp.digital_score)}">${dp.digital_score}/100</span></h4>`;
+            html += `<div class="diag-section"><h4>Score Digital: ${chip(dp.digital_score + '/100', corDoScore(dp.digital_score))}</h4>`;
             if (dp.website.exists) {
                 html += `<div class="diag-row"><span>Site</span><span class="${dp.website.issues.length ? 'bad' : 'ok'}">${dp.website.issues.length ? esc(dp.website.issues.join(', ')) : 'OK'}</span></div>`;
             } else {
@@ -445,8 +580,7 @@
             if (d.recommendations.length > 0) {
                 html += `<div class="diag-section"><h4>Recomendacoes</h4>`;
                 d.recommendations.forEach(r => {
-                    const cls = r.priority === 'alta' ? 'badge-alta' : r.priority === 'media' ? 'badge-media' : 'badge-baixa';
-                    html += `<div style="margin:0.4rem 0"><span class="badge ${cls}">${r.priority}</span> <strong>${esc(r.solution)}</strong><br><span style="font-size:0.8rem;color:#94a3b8">${esc(r.evidence)}</span></div>`;
+                    html += `<div class="recomendacao">${chip(r.priority, PRIORIDADE_COR[r.priority] || 'secondary')} <strong>${esc(r.solution)}</strong><span class="sub">${esc(r.evidence)}</span></div>`;
                 });
                 html += `</div>`;
             }
@@ -507,12 +641,12 @@
                 tbody.innerHTML = entries.map(e => `
                     <tr>
                         <td>${e.company_id}</td>
-                        <td><span class="badge ${e.status === 'PENDENTE' ? 'badge-media' : e.status === 'ENVIADO' ? 'badge-baixa' : 'badge-alta'}">${e.status}</span></td>
+                        <td>${chip(e.status, corDoStatus(e.status))}</td>
                         <td>${formatDate(e.created_at)}</td>
-                        <td>
+                        <td><div class="acoes">
                             <button class="btn btn-sm" onclick="viewCompany(${e.company_id})">Ver</button>
                             <button class="btn btn-sm btn-success" onclick="getOutreach(${e.company_id})">Abordagem</button>
-                        </td>
+                        </div></td>
                     </tr>
                 `).join('');
             } catch (e) {
@@ -525,7 +659,7 @@
             try {
                 const entries = await api('/prospection/opt-outs');
                 const tbody = document.getElementById('optoutTable');
-                tbody.innerHTML = entries.length === 0 ? '<tr><td colspan="4" style="text-align:center;color:#64748b">Nenhum opt-out registrado</td></tr>' :
+                tbody.innerHTML = entries.length === 0 ? '<tr><td colspan="4" class="empty">Nenhum opt-out registrado</td></tr>' :
                     entries.map(e => `
                         <tr>
                             <td>${esc(e.contact_identifier)}</td>
@@ -572,14 +706,14 @@
         });
         document.getElementById('uploadArea').addEventListener('dragover', e => {
             e.preventDefault();
-            e.currentTarget.style.borderColor = '#38bdf8';
+            e.currentTarget.classList.add('drag');
         });
         document.getElementById('uploadArea').addEventListener('dragleave', e => {
-            e.currentTarget.style.borderColor = '#475569';
+            e.currentTarget.classList.remove('drag');
         });
         document.getElementById('uploadArea').addEventListener('drop', e => {
             e.preventDefault();
-            e.currentTarget.style.borderColor = '#475569';
+            e.currentTarget.classList.remove('drag');
             if (e.dataTransfer.files.length) uploadCSV(e.dataTransfer.files[0]);
         });
         document.getElementById('csvInput').addEventListener('change', e => {
@@ -610,14 +744,14 @@
             try {
                 const s = await api('/dispatcher/status');
                 const wh = document.getElementById('dispatcherStatus');
-                const statusColor = s.paused ? '#facc15' : s.circuit_open ? '#f87171' : '#4ade80';
+                const statusCor = s.circuit_open ? 'error' : s.paused ? 'warning' : 'success';
                 const statusText = s.circuit_open ? 'CIRCUIT BREAKER' : s.paused ? 'Pausado' : 'Rodando';
                 wh.innerHTML = `
-                    <div class="stat-card"><div class="number" style="color:${statusColor};font-size:1.2rem">${statusText}</div><div class="label">Status</div></div>
+                    <div class="stat-card"><div class="number text-${statusCor}">${statusText}</div><div class="label">Status</div></div>
                     <div class="stat-card"><div class="number">${s.warmup_day}</div><div class="label">Dia Warmup</div></div>
                     <div class="stat-card"><div class="number">${s.warmup_max_today}</div><div class="label">Max Hoje WhatsApp</div></div>
                     <div class="stat-card"><div class="number">${s.email_warmup_max_today}</div><div class="label">Max Hoje E-mail (dia ${s.email_warmup_day})</div></div>
-                    <div class="stat-card"><div class="number">${s.last_error ? s.last_error.substring(0, 20) : 'Nenhum'}</div><div class="label">Ultimo Erro</div></div>
+                    <div class="stat-card"><div class="number" title="${esc(s.last_error || '')}">${s.last_error ? esc(s.last_error.substring(0, 20)) : 'Nenhum'}</div><div class="label">Ultimo Erro</div></div>
                     <div class="stat-card"><div class="number">${s.started_at ? new Date(s.started_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Iniciado</div></div>
                     <div class="stat-card"><div class="number">${s.last_cycle_at ? new Date(s.last_cycle_at).toLocaleTimeString('pt-BR') : '-'}</div><div class="label">Ultimo Ciclo</div></div>
                 `;
@@ -657,23 +791,18 @@
                 const msgs = await api('/messages' + params);
                 const tbody = document.getElementById('msgTable');
                 if (msgs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#64748b">Nenhuma mensagem</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty">Nenhuma mensagem</td></tr>';
                     return;
                 }
                 tbody.innerHTML = msgs.map(m => {
-                    const statusBadge = {
-                        'enviado': 'badge-baixa', 'aprovado': 'badge-media',
-                        'rascunho': 'badge-media', 'erro_envio': 'badge-alta',
-                        'erro_validacao': 'badge-alta'
-                    }[m.status] || 'badge-media';
                     return `<tr>
                         <td>${m.id}</td>
                         <td>${esc(m.company_name || m.company_id)}</td>
-                        <td><span class="badge ${statusBadge}">${m.status}</span></td>
-                        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(m.message_text)}">${esc(m.message_text)}</td>
+                        <td>${chip(m.status, corDoStatus(m.status))}</td>
+                        <td class="truncate" title="${esc(m.message_text)}">${esc(m.message_text)}</td>
                         <td>${formatDate(m.generated_at)}</td>
                         <td>${m.sent_at ? formatDate(m.sent_at) : '-'}</td>
-                        <td style="color:#f87171;font-size:0.75rem">${esc(m.last_error || '')}</td>
+                        <td><span class="erro-linha">${esc(m.last_error || '')}</span></td>
                     </tr>`;
                 }).join('');
             } catch (e) {
@@ -682,8 +811,6 @@
         }
 
         // --- RESPOSTAS E PREVIAS ---
-        const PREVIEW_BADGE = { pendente: 'badge-media', rascunho: 'badge-media', publicado: 'badge-baixa',
-                                enviado: 'badge-baixa', erro: 'badge-alta', descartado: 'badge-alta', expirado: 'badge-alta' };
         let previews = [];
 
         async function loadPreviews() {
@@ -696,13 +823,13 @@
                     <div class="stat-card"><div class="number">${count('enviado')}</div><div class="label">Prévias enviadas</div></div>
                     <div class="stat-card"><div class="number">${count('erro')}</div><div class="label">Com erro</div></div>`;
                 document.getElementById('previewTable').innerHTML = previews.length === 0
-                    ? '<tr><td colspan="6" style="text-align:center;color:#64748b">Nenhuma prévia ainda. Elas nascem quando uma empresa responde.</td></tr>'
+                    ? '<tr><td colspan="6" class="empty">Nenhuma prévia ainda. Elas nascem quando uma empresa responde.</td></tr>'
                     : previews.map(p => `<tr>
-                        <td><strong>${esc(p.company_name)}</strong><br><span style="color:#64748b;font-size:0.75rem">${esc(p.language || '')} · ${esc(p.template_slug || '')}</span></td>
-                        <td><span class="badge ${PREVIEW_BADGE[p.status] || 'badge-media'}">${p.status}</span>${p.last_error ? `<br><span style="color:#f87171;font-size:0.7rem">${esc(p.last_error.substring(0, 80))}</span>` : ''}</td>
-                        <td style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(p.reply_text)}">${esc(p.reply_text || '-')}</td>
+                        <td><strong>${esc(p.company_name)}</strong><span class="sub">${esc(p.language || '')} · ${esc(p.template_slug || '')}</span></td>
+                        <td>${chip(p.status, corDoStatus(p.status))}${p.last_error ? `<span class="erro-linha">${esc(p.last_error.substring(0, 80))}</span>` : ''}</td>
+                        <td class="truncate" title="${esc(p.reply_text)}">${esc(p.reply_text || '-')}</td>
                         <td>${formatDate(p.generated_at)}</td>
-                        <td>${p.status === 'enviado' || p.status === 'publicado' ? `<a href="${esc(p.preview_url)}" target="_blank" style="color:#38bdf8">abrir</a>` : '-'}</td>
+                        <td>${p.status === 'enviado' || p.status === 'publicado' ? `<a href="${esc(p.preview_url)}" target="_blank" rel="noopener">abrir</a>` : '-'}</td>
                         <td>${['rascunho', 'publicado', 'erro'].includes(p.status) ? `<button class="btn btn-sm btn-success" onclick="openPreview(${p.id})">Revisar</button>` : ''}</td>
                     </tr>`).join('');
             } catch (e) { showToast(e.message, true); }
@@ -711,14 +838,13 @@
         async function loadReplies() {
             try {
                 const replies = await api('/replies?limit=100');
-                const kindBadge = { reply: 'badge-baixa', opt_out: 'badge-alta', bounce: 'badge-alta' };
                 document.getElementById('replyTable').innerHTML = replies.length === 0
-                    ? '<tr><td colspan="5" style="text-align:center;color:#64748b">Nenhuma resposta ainda</td></tr>'
+                    ? '<tr><td colspan="5" class="empty">Nenhuma resposta ainda</td></tr>'
                     : replies.map(r => `<tr>
                         <td>${esc(r.company_name || r.company_id)}</td>
-                        <td><span class="badge ${kindBadge[r.kind] || 'badge-media'}">${r.kind}${r.is_first_reply ? ' · 1ª' : ''}</span></td>
+                        <td>${chip(r.kind + (r.is_first_reply ? ' · 1ª' : ''), corDoStatus(r.kind))}</td>
                         <td>${esc(r.from_address || '-')}</td>
-                        <td style="max-width:360px;white-space:pre-wrap;font-size:0.8rem">${esc(r.raw_content.substring(0, 400))}</td>
+                        <td class="quebra">${esc(r.raw_content.substring(0, 400))}</td>
                         <td>${formatDate(r.received_at)}</td>
                     </tr>`).join('');
             } catch (e) { showToast(e.message, true); }
@@ -731,12 +857,12 @@
                 <h2>Prévia · ${esc(p.company_name)}</h2>
                 <h3>O que a empresa respondeu</h3>
                 <div class="outreach-box">${esc(p.reply_text || '-')}</div>
-                <h3>Site gerado <a href="${esc(p.local_url)}" target="_blank" style="font-size:0.8rem;color:#94a3b8">(abrir em tela cheia)</a></h3>
-                <iframe src="${esc(p.local_url)}" style="width:100%;height:420px;border:1px solid #334155;border-radius:8px;background:#fff"></iframe>
+                <h3>Site gerado <a href="${esc(p.local_url)}" target="_blank" rel="noopener">(abrir em tela cheia)</a></h3>
+                <iframe src="${esc(p.local_url)}" class="preview-frame"></iframe>
                 <h3>Resposta que vai no mesmo thread</h3>
-                <input id="fuSubject" value="${esc(p.followup_subject || '')}" style="width:100%;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.5rem;border-radius:4px;margin-bottom:0.5rem">
-                <textarea id="fuText" rows="9" style="width:100%;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:0.6rem;border-radius:4px;font:inherit;font-size:0.85rem">${esc(p.followup_text || '')}</textarea>
-                <p style="font-size:0.75rem;color:#94a3b8">O link ${esc(p.preview_url || '')} precisa continuar no texto. O rodapé legal é anexado no envio.</p>
+                <input type="text" id="fuSubject" class="field-full" value="${esc(p.followup_subject || '')}">
+                <textarea id="fuText" rows="9" class="field-full">${esc(p.followup_text || '')}</textarea>
+                <p class="ajuda">O link ${esc(p.preview_url || '')} precisa continuar no texto. O rodapé legal é anexado no envio.</p>
                 <div class="modal-actions">
                     <button class="btn btn-danger" onclick="previewAction(${p.id}, 'discard')">Descartar</button>
                     <button class="btn btn-outline" onclick="previewAction(${p.id}, 'regenerate')">Gerar de novo</button>
