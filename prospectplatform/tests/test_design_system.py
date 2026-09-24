@@ -8,14 +8,14 @@ import re
 
 import pytest
 
-from app.branding.brand_kit import BrandKit, MOOD_PALETTES, Photo, load_copy
+from app.branding.brand_kit import BrandKit, CATEGORY_PALETTES, Photo, category_palette, load_copy
 from app.branding.site_renderer import FONTS, FONTS_BY_CATEGORY, contrast_ratio, render_site
 
 BANIDAS = ("Inter", "Roboto", "Poppins", "Montserrat")
 
 
 def kit(slug="barbearia", mood="bold", language="fr-FR", **kw):
-    primary, accent, background, text = MOOD_PALETTES[mood]
+    primary, accent, background, text = category_palette(slug, language)
     base = dict(name="Atelier Lumière", category_slug=slug, category_label="barbier", city="Paris", mood=mood,
                 language=language, primary=primary, accent=accent, background=background, text=text,
                 address="12 rue Oberkampf, 75011 Paris", phone="+33 1 23 45 67 89")
@@ -73,7 +73,24 @@ def test_texto_do_site_entra_entre_aspas_do_idioma():
     assert "«Desde sempre na esquina.»" in html(language="pt-PT", about_snippet="Desde sempre na esquina.")
 
 
-@pytest.mark.parametrize("mood", list(MOOD_PALETTES))
-def test_paletas_de_reserva_passam_aa(mood):
-    _, _, background, text = MOOD_PALETTES[mood]
+def _paletas_de_reserva():
+    for slug, entry in CATEGORY_PALETTES.items():
+        if isinstance(entry, dict):
+            for lang, palette in entry.items():
+                yield f"{slug}-{lang}", palette
+        else:
+            yield slug, entry
+
+
+@pytest.mark.parametrize("slug,palette", list(_paletas_de_reserva()))
+def test_paletas_de_reserva_passam_aa(slug, palette):
+    _, _, background, text = palette
+    assert contrast_ratio(background, text) >= 4.5
+
+
+@pytest.mark.parametrize("slug", [s for s in load_copy()["categories"] if s != "_default"])
+def test_toda_categoria_do_copy_tem_paleta(slug):
+    copy = load_copy()
+    lang = next(k for k in copy["categories"][slug] if k != "mood" and k != "photo_query")
+    primary, accent, background, text = category_palette(slug, lang)
     assert contrast_ratio(background, text) >= 4.5

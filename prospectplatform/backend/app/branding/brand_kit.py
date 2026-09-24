@@ -14,18 +14,40 @@ import yaml
 
 from app.core.config import settings
 from app.core.countries import search_term
+from app.i18n import lang_key
 
 logger = logging.getLogger(__name__)
 
 _COPY_FILE = Path(__file__).resolve().parent.parent.parent.parent / "config" / "site_copy.yaml"
 
-# Paletas de reserva por mood: (primaria, acento, fundo, texto)
-MOOD_PALETTES = {
-    "bold": ("#1d1d1f", "#c8a45a", "#111111", "#f5f3ee"),
-    "soft": ("#6b4f4f", "#d8a7a0", "#fbf7f4", "#2b2222"),
-    "warm": ("#7a2e1d", "#d9a441", "#f7f0e3", "#2a1d15"),
-    "clean": ("#1f3a5f", "#3aa7a3", "#f6f8fa", "#1b1f24"),
+# Paletas de reserva por oficio (design-system.md, secao 3): (primaria, acento, fundo, texto).
+# So entram quando o site nao deu cor nenhuma (brand_colors_from_site=False). Os materiais do
+# oficio, nao um "mood" generico: couro e latao na barbearia, azulejo e cal no restaurante em
+# PT, ardosia e giz no restaurante em FR, linho e terracota na pousada, branco clinico com um
+# azul discreto na clinica. Restaurante muda de par por lingua (mercado FR/BE fala PT/FR/NL).
+CATEGORY_PALETTES = {
+    "barbearia": ("#3c2a1d", "#b8925a", "#1b1613", "#f3ead9"),
+    "academia": ("#22262d", "#5b95b8", "#121316", "#eef1f4"),
+    "salao-de-beleza": ("#8a5a52", "#cf9a86", "#faf3f0", "#2e2320"),
+    "clinica": ("#25302f", "#2f6f8f", "#f7faf9", "#1c2624"),
+    "restaurante": {
+        "pt": ("#1f4d63", "#c7b98a", "#f5f2ea", "#20303a"),  # azulejo e cal
+        "fr": ("#3a3f42", "#e8c468", "#2c2f31", "#f4f1ea"),  # ardosia e giz
+    },
+    "pousada": ("#b5623f", "#d8c3a5", "#f6efe6", "#3a2a20"),
+    "imobiliaria": ("#4a5257", "#4f8fae", "#f1f2f2", "#1e2224"),
+    "oficina": ("#2a2d31", "#d99a2b", "#17181b", "#eceef0"),
+    "_default": ("#1f3a5f", "#3aa7a3", "#f6f8fa", "#1b1f24"),
 }
+
+
+def category_palette(slug: str, language: str) -> tuple[str, str, str, str]:
+    """Paleta de reserva do oficio. Restaurante varia por lingua; sem par para a lingua, cai no FR
+    (ardosia e giz), o par mais proximo de um bistro europeu generico entre os mercados do piloto."""
+    entry = CATEGORY_PALETTES.get(slug, CATEGORY_PALETTES["_default"])
+    if isinstance(entry, dict):
+        return entry.get(lang_key(language), entry["fr"])
+    return entry
 
 
 @dataclass
@@ -109,7 +131,7 @@ def build_brand_kit(company, audit, language: str, photo_source=pexels_photos) -
     slug = company.category.slug if company.category else "_default"
     cat = category_copy(copy, slug)
     mood = cat["mood"]
-    primary, accent, background, text = MOOD_PALETTES[mood]
+    primary, accent, background, text = category_palette(slug, language)
 
     site_colors = json.loads(audit.dominant_colors) if audit and audit.dominant_colors else []
     if site_colors:
