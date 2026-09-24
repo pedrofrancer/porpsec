@@ -14,6 +14,8 @@ from app.auditors.extractors import (
     clean_about_snippet,
     detect_legal_entity,
     extract_emails,
+    extract_opening_hours,
+    extract_services_prices,
     normalize_lang,
     pick_brand_colors,
     pick_contact_email,
@@ -275,6 +277,8 @@ class WebsiteAuditor(BaseAuditor):
         result.og_image_url = urljoin(url, og) if og else None
         result.dominant_colors = pick_brand_colors(data.get("colors", []))
         result.about_snippet = clean_about_snippet(data.get("about"))
+        result.services = extract_services_prices(data.get("html"))
+        result.opening_hours = extract_opening_hours(data.get("html"))
 
     async def _audit_social_media(self, company: Company, result: AuditResult):
         async with async_playwright() as p:
@@ -537,6 +541,8 @@ class WebsiteAuditor(BaseAuditor):
             dominant_colors=json.dumps(result.dominant_colors) if result.dominant_colors else None,
             og_image_url=result.og_image_url,
             about_snippet=result.about_snippet,
+            services_json=json.dumps(result.services, ensure_ascii=False) if result.services else None,
+            opening_hours_json=json.dumps(result.opening_hours, ensure_ascii=False) if result.opening_hours else None,
             raw_data=json.dumps(result.raw_data, default=str, ensure_ascii=False),
             audited_at=datetime.now(timezone.utc),
         )

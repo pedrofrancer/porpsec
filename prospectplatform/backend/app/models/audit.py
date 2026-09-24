@@ -50,6 +50,8 @@ class Audit(Base):
     dominant_colors: Mapped[str | None] = mapped_column(Text)  # JSON list de hex
     og_image_url: Mapped[str | None] = mapped_column(String(1000))
     about_snippet: Mapped[str | None] = mapped_column(Text)
+    services_json: Mapped[str | None] = mapped_column(Text)  # JSON list de [nome, preco]
+    opening_hours_json: Mapped[str | None] = mapped_column(Text)  # JSON list de strings (schema.org)
 
     # Dados brutos extras
     raw_data: Mapped[str | None] = mapped_column(Text)

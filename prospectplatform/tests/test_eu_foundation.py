@@ -2,6 +2,8 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
+import json
+
 import pytest
 
 from app.auditors.extractors import (
@@ -9,6 +11,8 @@ from app.auditors.extractors import (
     css_color_to_hex,
     detect_legal_entity,
     extract_emails,
+    extract_opening_hours,
+    extract_services_prices,
     is_generic_local_part,
     is_webmail,
     normalize_lang,
@@ -153,3 +157,59 @@ def test_clean_about_snippet():
     snippet = clean_about_snippet(long_text)
     assert len(snippet) <= 320
     assert snippet.endswith(".")
+
+
+# --- servicos, precos e horario (JSON-LD) ---
+
+def _html_with_jsonld(payload) -> str:
+    return f'<html><head><script type="application/ld+json">{json.dumps(payload)}</script></head></html>'
+
+
+def test_extract_services_prices_de_service():
+    html = _html_with_jsonld({
+        "@context": "https://schema.org", "@type": "Service",
+        "name": "Coupe homme", "offers": {"@type": "Offer", "price": "18", "priceCurrency": "EUR"},
+    })
+    assert extract_services_prices(html) == [("Coupe homme", "18 €")]
+
+
+def test_extract_services_prices_ignora_sem_preco():
+    html = _html_with_jsonld({"@type": "Service", "name": "Consulta"})
+    assert extract_services_prices(html) == []
+
+
+def test_extract_services_prices_le_graph_e_para_no_limite():
+    items = [{"@type": "Product", "name": f"Item {i}", "offers": {"price": i, "priceCurrency": "EUR"}}
+             for i in range(10)]
+    html = _html_with_jsonld({"@graph": items})
+    result = extract_services_prices(html, limit=6)
+    assert len(result) == 6
+
+
+def test_extract_services_prices_sem_jsonld_volta_vazio():
+    assert extract_services_prices("<html><body>sem dados estruturados</body></html>") == []
+
+
+def test_extract_opening_hours_string():
+    html = _html_with_jsonld({"@type": "LocalBusiness", "openingHours": ["Mo-Fr 09:00-18:00", "Sa 09:00-12:00"]})
+    assert extract_opening_hours(html) == ["Mo-Fr 09:00-18:00", "Sa 09:00-12:00"]
+
+
+def test_extract_opening_hours_specification_objeto():
+    html = _html_with_jsonld({
+        "@type": "LocalBusiness",
+        "openingHoursSpecification": [
+            {"dayOfWeek": ["Monday", "Tuesday"], "opens": "09:00", "closes": "18:00"},
+        ],
+    })
+    assert extract_opening_hours(html) == ["Monday, Tuesday 09:00-18:00"]
+
+
+def test_extract_opening_hours_sem_jsonld_volta_vazio():
+    assert extract_opening_hours("<html><body>sem dados estruturados</body></html>") == []
+
+
+def test_extract_opening_hours_json_invalido_nao_quebra():
+    html = '<html><head><script type="application/ld+json">{invalido</script></head></html>'
+    assert extract_opening_hours(html) == []
+    assert extract_services_prices(html) == []

@@ -30,6 +30,24 @@ FONTS_BY_CATEGORY = {
 # Categoria sem par proprio cai no mood.
 FONTS = {"bold": _LETREIRO, "warm": _LIVRO, "soft": _BALCAO, "clean": _BALCAO}
 
+# O objeto do oficio (design-system.md, secao 4): cada categoria organiza a primeira tela em
+# torno de um objeto fisico diferente, nao do mesmo "quadro de servicos" para todas.
+# - tabela: tabela de precos na parede (linha com pontilhado ate o valor)
+# - cartao: cartao de balcao (titulo e servico empilhados, sem pontilhado)
+# - carta: ardosia/carta de restaurante (prato em destaque, descricao em italico)
+# - horario: quadro de horarios do ginasio (grade de 2 colunas)
+# - marcacao: cartao de marcacao da clinica (telefone e CTA, sem lista de servicos)
+# clinica e pousada tem tela de abertura propria, tratadas a parte no template.
+OBJETO_BY_CATEGORY = {
+    "barbearia": "tabela", "academia": "horario",
+    "restaurante": "carta", "pousada": "livro",
+    "salao-de-beleza": "cartao", "clinica": "marcacao",
+}
+
+
+def objeto_for(kit: "BrandKit") -> str:
+    return OBJETO_BY_CATEGORY.get(kit.category_slug, "tabela")
+
 _QUOTES = {"fr": ("« ", " »"), "pt": ("«", "»"), "nl": ("‘", "’"), "en": ("“", "”")}
 
 
@@ -77,11 +95,13 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
     values = {"name": kit.name, "city": kit.city, "category": kit.category_label.capitalize(),
               "brand": sender_brand or "", "credit": ", ".join(sorted({p.credit for p in kit.gallery if p.credit}))}
     ui = {k: _fmt(v, **values) if k not in ("rating",) else v for k, v in ui_raw.items()}
+    # Servico e preco reais do site (JSON-LD) ganham do texto de categoria; sem coleta, cai no
+    # texto de categoria como sempre caiu (design-system.md, secao 8: sem preco, sem invencao).
     page_copy = {
         "tagline": _fmt(cat_lang["tagline"], **values),
         "cta": cat_lang["cta"],
         "about": _fmt(cat_lang["about"], **values),
-        "services": cat_lang.get("services", []),
+        "services": kit.services if kit.services else cat_lang.get("services", []),
     }
 
     rating_line = None
@@ -107,6 +127,7 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
         ui=ui,
         copy=page_copy,
         fonts=fonts_for(kit),
+        objeto=objeto_for(kit),
         rating_line=rating_line,
         map_url=map_url,
         contact_href=contact_href,
