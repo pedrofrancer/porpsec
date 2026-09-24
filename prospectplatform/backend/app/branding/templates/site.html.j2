@@ -28,6 +28,7 @@ a{color:inherit}
 header{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:20px 0;border-bottom:1px solid var(--fio)}
 .marca{display:flex;align-items:center;gap:12px;text-decoration:none;font-family:var(--display);font-size:1.25rem;line-height:1.1}
 .marca img{height:44px;width:auto;object-fit:contain}
+.marca img.logo-claro{background:var(--tinta);padding:6px 10px;border-radius:4px;box-sizing:content-box}
 .tel{text-decoration:none;font-weight:600;white-space:nowrap}
 .btn{display:inline-block;background:var(--casa-2);color:var(--on-casa-2);padding:13px 22px;border-radius:var(--raio);text-decoration:none;font-weight:600}
 .btn.linha{background:transparent;color:inherit;border:1px solid currentColor}
@@ -87,7 +88,7 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
 <div class="wrap">
   <header>
     <a class="marca" href="#top">
-      {% if kit.logo_url %}<img src="{{ kit.logo_url }}" alt="{{ kit.name }}">{% else %}{{ kit.name }}{% endif %}
+      {% if kit.logo_url %}<img src="{{ kit.logo_url }}" alt="{{ kit.name }}"{% if kit.logo_is_light %} class="logo-claro"{% endif %}>{% else %}{{ kit.name }}{% endif %}
     </a>
     {% if kit.phone %}<a class="tel" href="tel:{{ kit.phone|replace(' ', '') }}">{{ kit.phone }}</a>{% endif %}
   </header>
