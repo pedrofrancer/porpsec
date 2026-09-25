@@ -108,10 +108,21 @@ def test_publisher_writes_and_removes(tmp_path):
     pub = PagesPublisher(root=tmp_path)
     pub.write("abc", "<html></html>")
     assert (tmp_path / "p" / "abc" / "index.html").exists()
-    assert "Disallow: /" in (tmp_path / "robots.txt").read_text()
-    assert "noindex" in (tmp_path / "_headers").read_text()
+    assert "Disallow: /p/" in (tmp_path / "robots.txt").read_text()
+    assert "/p/*" in (tmp_path / "_headers").read_text() and "noindex" in (tmp_path / "_headers").read_text()
     pub.remove(["abc"])
     assert not (tmp_path / "p" / "abc").exists()
+
+
+def test_publisher_write_final_fica_fora_do_bloqueio_de_indexacao(tmp_path):
+    pub = PagesPublisher(root=tmp_path)
+    pub.write_final("barbearia-aveiro-a1b2c3", "<html></html>")
+    assert (tmp_path / "site" / "barbearia-aveiro-a1b2c3" / "index.html").exists()
+    robots = (tmp_path / "robots.txt").read_text()
+    headers = (tmp_path / "_headers").read_text()
+    assert "/site/" not in robots
+    assert "/site/*" not in headers
+    assert pub.final_url("barbearia-aveiro-a1b2c3").endswith("/site/barbearia-aveiro-a1b2c3/")
 
 
 def test_publisher_deploy_calls_wrangler(tmp_path):
