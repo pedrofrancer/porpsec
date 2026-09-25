@@ -34,7 +34,8 @@ def test_nada_da_lista_proibida(lang):
     assert "gradient" not in page
     assert "eyebrow" not in page
     assert not re.search(r">\s*0\d\s*<", page), "cartao numerado"
-    assert "<script" not in page
+    # JS inline e permitido (design-system.md, secao 6); biblioteca de terceiro, nao.
+    assert "<script src" not in page
 
 
 def test_mapa_e_link_e_nao_embed():
@@ -44,6 +45,28 @@ def test_mapa_e_link_e_nao_embed():
 
 def test_orcamento_de_peso():
     assert len(html().encode()) < 60_000
+
+
+def test_orcamento_de_js():
+    page = html()
+    m = re.search(r"<script>(.*?)</script>", page, re.S)
+    assert m, "esperava um <script> inline (design-system.md, secao 6)"
+    assert len(m.group(1).encode()) < 15_000
+
+
+def test_js_nao_carrega_biblioteca_externa():
+    assert "<script src" not in html()
+
+
+def test_js_respeita_prefers_reduced_motion():
+    assert "prefers-reduced-motion" in html()
+
+
+def test_cta_fixo_e_visor_de_foto_existem_no_js():
+    page = html()
+    assert 'id="cta-fixo"' in page
+    assert "IntersectionObserver" in page
+    assert "lightbox" in page
 
 
 @pytest.mark.parametrize("fonts", list(FONTS_BY_CATEGORY.values()) + list(FONTS.values()))

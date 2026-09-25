@@ -4,7 +4,7 @@
 <html lang="{{ lang }}">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>{{ kit.name }} · {{ kit.city }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -74,11 +74,27 @@ h2.sec{font-family:var(--display);font-weight:{{ fonts.display_weight }};font-si
 .contato dl{display:grid;gap:14px;font-size:1.05rem;max-width:44ch}
 .contato dt{font-size:.85rem;opacity:.7}
 footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fio)}
+.contato dd a{overflow-wrap:break-word}
+.cta-fixo{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--papel);border-top:1px solid var(--fio);opacity:0;transform:translateY(100%);transition:opacity .2s ease,transform .2s ease;pointer-events:none;z-index:5}
+.cta-fixo.visivel{opacity:1;transform:none;pointer-events:auto}
+.cta-fixo .btn{display:block;text-align:center}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:24px;opacity:0;pointer-events:none;transition:opacity .2s ease;z-index:10}
+.lightbox.aberto{opacity:1;pointer-events:auto}
+.lightbox img{max-width:100%;max-height:100%;border-radius:4px;cursor:zoom-out}
+@media (min-width:761px){
+  .cta-fixo{display:none}
+}
 @media (max-width:760px){
   .abertura,.sobre,.contato{grid-template-columns:1fr;gap:28px}
   .abertura{padding:36px 0 48px}
   .fotos{grid-template-columns:1fr 1fr}
   section{padding:48px 0}
+  main{padding-bottom:72px}
+}
+@media (max-width:400px){
+  .wrap{width:min(1080px,100% - 24px)}
+  .objeto{padding:22px 20px 16px}
+  .objeto-horario ul{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -172,5 +188,66 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
 <footer>
   <div class="wrap">© {{ year }} {{ kit.name }} · {{ kit.city }}</div>
 </footer>
+
+<div class="cta-fixo" id="cta-fixo"><a class="btn" href="{{ contact_href }}">{{ copy.cta }}</a></div>
+
+<script>
+(function(){
+  "use strict";
+  var reduzMovimento = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Entrada suave por secao. So esconde via JS: sem JS ou com erro, a pagina fica inteira visivel.
+  if (!reduzMovimento && "IntersectionObserver" in window) {
+    var blocos = document.querySelectorAll(".abertura, main > section");
+    blocos.forEach(function(el){
+      el.style.opacity = "0";
+      el.style.transform = "translateY(14px)";
+      el.style.transition = "opacity .5s ease, transform .5s ease";
+    });
+    var ioEntrada = new IntersectionObserver(function(entradas){
+      entradas.forEach(function(entrada){
+        if (entrada.isIntersecting) {
+          entrada.target.style.opacity = "1";
+          entrada.target.style.transform = "none";
+          ioEntrada.unobserve(entrada.target);
+        }
+      });
+    }, {threshold: .1});
+    blocos.forEach(function(el){ ioEntrada.observe(el); });
+  }
+
+  // CTA fixo no celular, so depois que a abertura sai da tela (o CTA de cima ja fez o trabalho ate ali).
+  var ctaFixo = document.getElementById("cta-fixo");
+  var abertura = document.querySelector(".abertura");
+  if (ctaFixo && abertura && "IntersectionObserver" in window) {
+    var ioCta = new IntersectionObserver(function(entradas){
+      entradas.forEach(function(entrada){ ctaFixo.classList.toggle("visivel", !entrada.isIntersecting); });
+    }, {rootMargin: "-56px 0px 0px 0px"});
+    ioCta.observe(abertura);
+  }
+
+  // Ver foto maior. So cria o visor se houver foto; sem JS, a foto continua ali, so nao amplia.
+  var fotos = document.querySelectorAll(".fotos img");
+  if (fotos.length) {
+    var visor = document.createElement("div");
+    visor.className = "lightbox";
+    var imgGrande = document.createElement("img");
+    imgGrande.alt = "";
+    visor.appendChild(imgGrande);
+    document.body.appendChild(visor);
+    function fecharVisor(){ visor.classList.remove("aberto"); imgGrande.src = ""; }
+    fotos.forEach(function(img){
+      img.style.cursor = "zoom-in";
+      img.addEventListener("click", function(){
+        imgGrande.src = img.src;
+        imgGrande.alt = img.alt;
+        visor.classList.add("aberto");
+      });
+    });
+    visor.addEventListener("click", fecharVisor);
+    document.addEventListener("keydown", function(evento){ if (evento.key === "Escape") fecharVisor(); });
+  }
+})();
+</script>
 </body>
 </html>
