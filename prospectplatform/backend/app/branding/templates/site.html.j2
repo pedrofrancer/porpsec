@@ -5,7 +5,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="robots" content="noindex, nofollow">
+{% if final %}<meta name="robots" content="index, follow">{% else %}<meta name="robots" content="noindex, nofollow">{% endif %}
 <title>{{ kit.name }} · {{ kit.city }}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -99,7 +99,7 @@ footer{padding:28px 0;font-size:.85rem;opacity:.75;border-top:1px solid var(--fi
 </style>
 </head>
 <body>
-<div class="aviso">{{ ui.banner }}</div>
+{% if not final %}<div class="aviso">{{ ui.banner }}</div>{% endif %}
 
 <div class="wrap">
   <header>
