@@ -1,7 +1,10 @@
-"""Publica as previas no Cloudflare Pages (plano gratis) com o wrangler oficial.
+"""Publica as previas e os sites finais no Cloudflare Pages (plano gratis) com o wrangler oficial.
 
-Todas as previas vivem num unico projeto, em /p/<slug>/, e cada publicacao reenvia a pasta
-inteira (o wrangler so sobe o que mudou). Previa vencida sai da pasta antes do deploy.
+Um projeto so, duas pastas: /p/<slug>/ (previa, noindex, expira) e /site/<slug>/ (site final,
+indexavel, sem prazo). Cada publicacao reenvia a arvore inteira (o wrangler so sobe o que
+mudou). Nao e subdominio proprio por cliente: isso precisa de um dominio raiz configurado no
+Cloudflare (custo e DNS por conta), que o piloto ainda nao tem. /site/<slug>/ e o
+equivalente gratis, sem o cliente mexer em DNS.
 """
 
 import logging
@@ -17,8 +20,8 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-_ROBOTS = "User-agent: *\nDisallow: /\n"
-_HEADERS = "/*\n  X-Robots-Tag: noindex, nofollow\n  Referrer-Policy: no-referrer\n"
+_ROBOTS = "User-agent: *\nDisallow: /p/\n"
+_HEADERS = "/p/*\n  X-Robots-Tag: noindex, nofollow\n  Referrer-Policy: no-referrer\n"
 _ROOT_INDEX = '<!doctype html><meta name="robots" content="noindex"><title>Preview</title>'
 
 
@@ -47,13 +50,30 @@ class PagesPublisher:
     def public_url(self, slug: str) -> str:
         return f"https://{settings.CLOUDFLARE_PAGES_PROJECT}.pages.dev/p/{slug}/"
 
-    def write(self, slug: str, html: str) -> Path:
-        """Grava a previa no disco (tambem servida localmente em /preview/<slug>/ para revisao)."""
+    def final_dir(self, slug: str) -> Path:
+        return self.root / "site" / slug
+
+    def final_url(self, slug: str) -> str:
+        return f"https://{settings.CLOUDFLARE_PAGES_PROJECT}.pages.dev/site/{slug}/"
+
+    def _write_shared_files(self):
         self.root.mkdir(parents=True, exist_ok=True)
         (self.root / "robots.txt").write_text(_ROBOTS, encoding="utf-8")
         (self.root / "_headers").write_text(_HEADERS, encoding="utf-8")
         (self.root / "index.html").write_text(_ROOT_INDEX, encoding="utf-8")
+
+    def write(self, slug: str, html: str) -> Path:
+        """Grava a previa no disco (tambem servida localmente em /preview/<slug>/ para revisao)."""
+        self._write_shared_files()
         target = self.page_dir(slug)
+        target.mkdir(parents=True, exist_ok=True)
+        (target / "index.html").write_text(html, encoding="utf-8")
+        return target
+
+    def write_final(self, slug: str, html: str) -> Path:
+        """Grava o site final: mesma arvore da previa, pasta /site/, sem o bloqueio de indexacao."""
+        self._write_shared_files()
+        target = self.final_dir(slug)
         target.mkdir(parents=True, exist_ok=True)
         (target / "index.html").write_text(html, encoding="utf-8")
         return target

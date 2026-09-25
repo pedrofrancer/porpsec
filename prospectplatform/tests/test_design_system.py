@@ -23,8 +23,8 @@ def kit(slug="barbearia", mood="bold", language="fr-FR", **kw):
     return BrandKit(**base)
 
 
-def html(**kw):
-    return render_site(kit(**kw), "Desire Systems")
+def html(final=False, **kw):
+    return render_site(kit(**kw), "Desire Systems", final=final)
 
 
 @pytest.mark.parametrize("lang", ["fr-FR", "nl-NL", "pt-PT"])
@@ -36,6 +36,18 @@ def test_nada_da_lista_proibida(lang):
     assert not re.search(r">\s*0\d\s*<", page), "cartao numerado"
     # JS inline e permitido (design-system.md, secao 6); biblioteca de terceiro, nao.
     assert "<script src" not in page
+
+
+def test_site_final_nao_tem_faixa_de_previa_e_e_indexavel():
+    page = html(final=True)
+    assert 'class="aviso"' not in page
+    assert 'content="index, follow"' in page
+
+
+def test_previa_normal_continua_com_faixa_e_noindex():
+    page = html()
+    assert 'class="aviso"' in page
+    assert 'content="noindex, nofollow"' in page
 
 
 def test_mapa_e_link_e_nao_embed():

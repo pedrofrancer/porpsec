@@ -10,6 +10,7 @@ from app.api.v1.endpoints.dispatcher import router as dispatcher_router
 from app.api.v1.endpoints.messages import router as messages_router
 from app.api.v1.endpoints.replies import router as replies_router
 from app.api.v1.endpoints.previews import router as previews_router
+from app.api.v1.endpoints.final_sites import router as final_sites_router
 
 api_router = APIRouter()
 api_router.include_router(companies_router)
@@ -23,3 +24,4 @@ api_router.include_router(dispatcher_router)
 api_router.include_router(messages_router)
 api_router.include_router(replies_router)
 api_router.include_router(previews_router)
+api_router.include_router(final_sites_router)

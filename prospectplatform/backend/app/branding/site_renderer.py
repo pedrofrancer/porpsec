@@ -85,7 +85,10 @@ def _fmt(text: str, **values) -> str:
     return text.format(**values) if text else text
 
 
-def render_site(kit: BrandKit, sender_brand: str) -> str:
+def render_site(kit: BrandKit, sender_brand: str, final: bool = False) -> str:
+    """final=True e o site pronto pra publicar de verdade (indexavel, sem faixa de previa,
+    sem prazo de validade): so chame assim depois de confirmar dado real completo
+    (app.branding.final_site_service.missing_for_final), nunca com texto de categoria."""
     copy = load_copy()
     key = lang_key(kit.language)
     ui_raw = copy["ui"].get(key, copy["ui"]["en"])
@@ -134,4 +137,5 @@ def render_site(kit: BrandKit, sender_brand: str) -> str:
         photos=photos[:3],
         quotes=_QUOTES.get(key, _QUOTES["en"]),
         year=datetime.now().year,
+        final=final,
     )
